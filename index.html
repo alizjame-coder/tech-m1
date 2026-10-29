@@ -159,7 +159,7 @@
             <span class="text-[10px] text-blue-600 font-semibold">บังคับใช้เลขประจำตัว</span>
           </div>
           <div class="relative">
-            <input type="password" id="loginPin" maxlength="15" autocomplete="new-password" onkeydown="if(event.key==='Enter') handleStudentLogin()" placeholder="ระบุเลขประจำตัว เช่น 10101" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition font-mono">
+            <input type="password" id="loginPin" maxlength="15" autocomplete="new-password" onkeydown="if(event.key==='Enter') handleStudentLogin()" placeholder="ระบุเลขประจำตัวนักเรียน เช่น 12345" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition font-mono">
             <button type="button" onclick="togglePinVisibility('loginPin', 'pinToggleIcon')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-sm">
               <i id="pinToggleIcon" class="fa-regular fa-eye"></i>
             </button>
@@ -713,19 +713,15 @@
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // หากเป็นข้อมูลเดิมที่มีมากกว่า 10 คน ให้รีเซ็ตเหลือตัวอย่าง 3 คน
-          if (Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 10) return parsed;
+          if (Array.isArray(parsed)) {
+            // ล้างข้อมูลตัวอย่างเดิม (10101, 10102, 10201) ออกจากระบบอัตโนมัติ
+            const clean = parsed.filter(st => String(st.pin) !== '10101' && String(st.pin) !== '10102' && String(st.pin) !== '10201');
+            localStorage.setItem('agy_system_students_db', JSON.stringify(clean));
+            return clean;
+          }
         } catch (e) {}
       }
-
-      // ข้อมูลนักเรียนตัวอย่างเริ่มต้น 3 คน
-      const list = [
-        { room: 'ม.1/1', student_no: 1, full_name: 'เด็กชายกิตติศักดิ์ พัฒนา', pin: '10101' },
-        { room: 'ม.1/1', student_no: 2, full_name: 'เด็กหญิงชลธิชา ใจดี', pin: '10102' },
-        { room: 'ม.1/2', student_no: 1, full_name: 'เด็กชายณัฐดนัย สมาร์ต', pin: '10201' }
-      ];
-      localStorage.setItem('agy_system_students_db', JSON.stringify(list));
-      return list;
+      return [];
     }
 
     /**

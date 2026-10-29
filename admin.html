@@ -763,101 +763,23 @@
         localLogs = [];
       }
 
-      const defaultDemoScores = [
-        {
-          timestamp: '2026-10-26 09:15:20',
-          room: 'ม.1/1',
-          student_no: '1',
-          full_name: 'ด.ช. กิตติศักดิ์ พัฒนา',
-          worksheet_id: 1,
-          worksheet_title: 'นักสำรวจเทคโนโลยีรอบตัว',
-          unit: 'หน่วยที่ 1',
-          score: 10,
-          max_score: 10,
-          percentage: '100%',
-          attempts: 1,
-          answers: {
-            "ws1_item1": "tech",
-            "ws1_item1_reason": "มนุษย์ประดิษฐ์ขึ้นเพื่อช่วยผ่อนแรงในการเดินทาง",
-            "ws1_item2": "nature",
-            "ws1_item2_reason": "เกิดขึ้นเองตามธรรมชาติ มนุษย์ไม่ได้สร้าง",
-            "ws1_item3": "tech",
-            "ws1_item3_reason": "เครื่องมือที่มนุษย์ประดิษฐ์ขึ้นเพื่อตัดสิ่งของ",
-            "ws1_item4": "nature",
-            "ws1_item4_reason": "ปรากฏการณ์ธรรมชาติของวัฏจักรน้ำ",
-            "ws1_item5": "tech",
-            "ws1_item5_reason": "มนุษย์สร้างเพื่อใช้ติดต่อสื่อสารระยะไกล",
-            "ws1_item6": "tech",
-            "ws1_item6_reason": "อุปกรณ์เขียนที่สร้างจากแกรไฟต์และไม้",
-            "ws1_item7": "tech",
-            "ws1_item7_reason": "อุปกรณ์บำบัดน้ำให้สะอาดปลอดภัย",
-            "ws1_item8": "nature",
-            "ws1_item8_reason": "สสารตามธรรมชาติ ไม่ผ่านการดัดแปลง",
-            "ws1_p2_1_name": "กระดานไวท์บอร์ด",
-            "ws1_p2_1_type": "ชิ้นงาน",
-            "ws1_p2_1_purpose": "ใช้เขียนอธิบายบทเรียนให้มองเห็นชัดเจนทั้งห้อง",
-            "ws1_p2_1_solve": "ช่วยให้สอนและอธิบายนักเรียนพร้อมกันได้อย่างทั่วถึง",
-            "ws1_p3_q1_sel": "not_always",
-            "ws1_p3_q1_text": "ไม่จำเป็น เพราะเทคโนโลยีรวมถึงสิ่งของธรรมดาอย่างกรรไกร ดินสอ หรือระบบวิธีการด้วย",
-            "ws1_p3_q2_sel": "yes",
-            "ws1_p3_q2_text": "เป็นเทคโนโลยี เพราะมนุษย์สร้างขึ้นเพื่อตอบสนองการเขียนบันทึก",
-            "ws1_p4_def": "สิ่งที่มนุษย์สร้างหรือพัฒนาขึ้น เพื่อแก้ปัญหาหรือสนองความต้องการ",
-            "ws1_p4_purp": "ช่วยแก้ปัญหา อำนวยความสะดวก และเพิ่มประสิทธิภาพการทำงาน"
-          }
-        },
-        {
-          timestamp: '2026-10-26 09:20:45',
-          room: 'ม.1/1',
-          student_no: '2',
-          full_name: 'ด.ญ. ปรียาพร ใจดี',
-          worksheet_id: 2,
-          worksheet_title: 'เทคโนโลยีกับงานอาชีพ',
-          unit: 'หน่วยที่ 1',
-          score: 8.5,
-          max_score: 10,
-          percentage: '85%',
-          attempts: 1,
-          answers: {
-            "ws2_p1_1": "ประหยัดแรงงานและเวลาในการซักผ้า",
-            "ws2_p1_2": "ช่วยติดต่อสื่อสารและค้นหาข้อมูลสะดวก",
-            "ws2_p1_3": "กรองสิ่งสกปรกทำให้น้ำสะอาดปลอดภัย",
-            "ws2_p1_4": "ช่วยเก็บเกี่ยวข้าวได้รวดเร็วทันเวลา",
-            "ws2_p1_5": "บดผสมอาหารได้ละเอียดสม่ำเสมอ",
-            "ws2_p4_1": "จ",
-            "ws2_p4_2": "ค",
-            "ws2_p4_3": "ข",
-            "ws2_p4_4": "ง",
-            "ws2_p4_5": "ก",
-            "ws2_p3_q1": "รถเกี่ยวข้าว",
-            "ws2_p3_q2": "แก้ปัญหาการขาดแคลนแรงงานคนและใช้เวลานาน",
-            "ws2_p5_summary": "เทคโนโลยีช่วยให้ทุกอาชีพทำงานได้อย่างมีประสิทธิภาพและประหยัดต้นทุน"
-          }
-        }
-      ];
+      scoresData = localLogs.filter(r => !['10101', '10102', '10201'].includes(String(r.pin || '')));
 
-      scoresData = localLogs.length > 0 ? [...localLogs, ...defaultDemoScores] : defaultDemoScores;
-
-      // โหลดข้อมูลนักเรียนจากที่บันทึกไว้ในเครื่อง (ถ้ามี) เพื่อให้แชร์กับหน้า index.html
+      // โหลดข้อมูลนักเรียนจากที่บันทึกไว้ในเครื่อง (ถ้ามี)
       const savedStudents = localStorage.getItem('agy_system_students_db');
       if (savedStudents) {
         try {
           const parsed = JSON.parse(savedStudents);
-          // หากเป็นข้อมูลเดิมที่มีมากกว่า 10 คน ให้รีเซ็ตเหลือตัวอย่าง 3 คน
-          if (Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 10) {
-            studentsData = parsed;
+          if (Array.isArray(parsed)) {
+            // ล้างข้อมูลตัวอย่างเดิม (10101, 10102, 10201) ออกจากระบบ
+            studentsData = parsed.filter(st => String(st.pin) !== '10101' && String(st.pin) !== '10102' && String(st.pin) !== '10201');
+            localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
           }
         } catch(e) {
           studentsData = [];
         }
-      }
-
-      if (!studentsData || studentsData.length === 0) {
-        studentsData = [
-          { room: 'ม.1/1', student_no: 1, full_name: 'ด.ช. กิตติศักดิ์ พัฒนา', pin: '10101' },
-          { room: 'ม.1/1', student_no: 2, full_name: 'ด.ญ. ชลธิชา ใจดี', pin: '10102' },
-          { room: 'ม.1/2', student_no: 1, full_name: 'ด.ช. ณัฐดนัย สมาร์ต', pin: '10201' }
-        ];
-        localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      } else {
+        studentsData = [];
       }
     }
 
