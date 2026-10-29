@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการสำหรับครูผู้สอน - การออกแบบและเทคโนโลยี ม.1</title>
+  
+  <!-- Google Fonts: Prompt & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            body: ['Sarabun', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+
+  <!-- Header แถบด้านบนของครู -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
+          <i class="fa-solid fa-chalkboard-user"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base sm:text-lg leading-tight flex items-center space-x-2">
+            <span>Teacher Control Dashboard</span>
+            <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-normal">ระบบจัดการของครู</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-body">การออกแบบและเทคโนโลยี ม.1 (12 ห้องเรียน • ~406 คน)</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <!-- ปุ่มสลับไปหน้านักเรียน -->
+        <a href="index.html" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 text-slate-300">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          <span class="hidden sm:inline">หน้านักเรียน (index.html)</span>
+        </a>
+        <!-- ปุ่มตั้งค่า API URL -->
+        <button onclick="openApiModal()" class="text-xs bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl font-medium transition flex items-center space-x-1.5 shadow-sm">
+          <i class="fa-solid fa-cloud"></i>
+          <span class="hidden sm:inline" id="apiStatusBadge">ตั้งค่า API</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Login Modal (ระบบยืนยันสิทธิ์ครูผู้สอน) -->
+  <div id="pinGateModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 mx-auto flex items-center justify-center text-2xl mb-4 shadow-inner">
+        <i class="fa-solid fa-user-shield"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800 mb-1">เข้าสู่ระบบครูผู้สอน</h3>
+      <p class="text-xs text-slate-500 font-body mb-5">กรุณากรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าสู่แดชบอร์ด</p>
+      
+      <div class="space-y-3.5 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อผู้ใช้ (Username)</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text" id="teacherUsername" placeholder="ระบุ Username ครูผู้สอน" autocomplete="username" class="w-full text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl py-2.5 pl-9 pr-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสผ่าน (Password)</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input type="password" id="teacherPassword" placeholder="ระบุ Password" autocomplete="current-password" class="w-full text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl py-2.5 pl-9 pr-9 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <button type="button" onclick="toggleTeacherPinEye()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <i id="teacherPinEyeIcon" class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button id="btnUnlockDashboard" onclick="unlockDashboard()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-2 mt-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>เข้าสู่ระบบแดชบอร์ด</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Container -->
+  <main class="max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 flex-1">
+
+    <!-- แถบแจ้งเตือนสถานะการเชื่อมต่อ -->
+    <div id="connectionBanner" class="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-body">
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-circle-exclamation text-amber-600 text-lg"></i>
+        <span><b>สถานะ:</b> <span id="syncStatus">กำลังเชื่อมต่อข้อมูลล่าสุด...</span> (เซิร์ฟเวอร์เวลา: <span id="serverClock" class="font-mono font-bold">-</span>)</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="loadAdminData()" class="bg-white hover:bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg font-sans font-semibold text-amber-800 flex items-center space-x-1 transition shadow-sm">
+          <i class="fa-solid fa-rotate"></i>
+          <span>รีเฟรชข้อมูล</span>
+        </button>
+        <label class="flex items-center space-x-1.5 cursor-pointer">
+          <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh(this)" class="rounded text-blue-600">
+          <span>ออโต้รีเฟรช (15 วิ)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- สรุปตัวเลขสถิติ (Stat Cards) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold">ส่งแล้วทั้งหมด</span>
+          <i class="fa-solid fa-file-circle-check text-blue-500 text-lg"></i>
+        </div>
+        <div class="text-2xl font-bold font-mono text-slate-800" id="statTotalSubmissions">0</div>
+        <div class="text-[11px] text-slate-500 font-body mt-1">จากทั้งหมด ~406 คน (12 ห้อง)</div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold">คะแนนเฉลี่ย</span>
+          <i class="fa-solid fa-chart-line text-emerald-500 text-lg"></i>
+        </div>
+        <div class="text-2xl font-bold font-mono text-slate-800" id="statAvgScore">0.0</div>
+        <div class="text-[11px] text-emerald-600 font-body mt-1" id="statAvgPercentage">0% ของคะแนนเต็ม</div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold">ห้องที่เปิดอยู่ตอนนี้</span>
+          <i class="fa-solid fa-door-open text-amber-500 text-lg"></i>
+        </div>
+        <div class="text-2xl font-bold font-mono text-slate-800" id="statOpenRooms">0</div>
+        <div class="text-[11px] text-slate-500 font-body mt-1">จากทั้งหมด 12 ห้องเรียน</div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold">คะแนนเต็มสูงสุด</span>
+          <i class="fa-solid fa-trophy text-amber-400 text-lg"></i>
+        </div>
+        <div class="text-2xl font-bold font-mono text-slate-800" id="statMaxScore">10</div>
+        <div class="text-[11px] text-slate-500 font-body mt-1">เกณฑ์ประเมินมาตรฐาน</div>
+      </div>
+    </div>
+
+    <!-- ส่วนที่ 1: ควบคุมสถานะการเปิด-ปิดใบงานรายห้อง (Room Control Center) -->
+    <section class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 text-base sm:text-lg flex items-center space-x-2">
+            <i class="fa-solid fa-sliders text-indigo-600"></i>
+            <span>ศูนย์ควบคุมการเปิด-ปิดใบงาน (12 ห้องเรียน)</span>
+          </h2>
+          <p class="text-xs text-slate-500 font-body">คลิกเปลี่ยนสถานะห้องเรียนได้ทันที: 🟢 เปิดตลอด | 🔴 ปิดรับ | ⏱️ อัตโนมัติตามเวลา</p>
+        </div>
+
+        <!-- ปุ่ม Action จัดการทุกห้องพร้อมกัน -->
+        <div class="flex items-center space-x-2">
+          <button onclick="updateAllRoomsStatus('OPEN')" class="text-xs bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold px-3 py-1.5 rounded-xl transition">
+            🟢 เปิดทุกห้อง
+          </button>
+          <button onclick="updateAllRoomsStatus('CLOSED')" class="text-xs bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 font-semibold px-3 py-1.5 rounded-xl transition">
+            🔴 ปิดทุกห้อง
+          </button>
+          <button onclick="updateAllRoomsStatus('AUTO')" class="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold px-3 py-1.5 rounded-xl transition">
+            ⏱️ AUTO ทั้งหมด
+          </button>
+        </div>
+      </div>
+
+      <!-- ผังการ์ด 12 ห้อง (ม.1/1 - ม.1/12) -->
+      <div id="roomCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <!-- การ์ดห้องเรียนจะถูก Render ด้วย JavaScript -->
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- ส่วนที่ 1.5: สวิตช์ควบคุมการเปิด-ปิดใบงานรายใบ (Worksheet-by-Worksheet Switchboard) -->
+    <!-- ======================================================== -->
+    <section class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 text-base sm:text-lg flex items-center space-x-2">
+            <i class="fa-solid fa-toggle-on text-indigo-600"></i>
+            <span>สวิตช์เลือกเปิด-ปิดใบงานรายใบ (1 - 18 ใบงาน)</span>
+          </h2>
+          <p class="text-xs text-slate-500 font-body mt-0.5">ครูสามารถเลือกเปิดหรือปิดใบงานได้อิสระทีละใบงาน ไม่ต้องเปิดรวมยกหน่วย พร้อมคำสั่งเปิด-ปิดทั้งหน่วยหรือทั้งหมดได้ทันที</p>
+        </div>
+
+        <!-- ตัวเลือกห้องเป้าหมาย -->
+        <div class="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+          <label class="text-xs font-semibold text-slate-700 whitespace-nowrap">ห้องเรียนเป้าหมาย:</label>
+          <select id="wsAccessTargetRoom" onchange="loadWorksheetAccessUI()" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-semibold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="ALL">🌟 ทุกห้องเรียน (ม.1/1 - ม.1/12)</option>
+            <option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option>
+            <option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option><option value="ม.1/6">ม.1/6</option>
+            <option value="ม.1/7">ม.1/7</option><option value="ม.1/8">ม.1/8</option><option value="ม.1/9">ม.1/9</option>
+            <option value="ม.1/10">ม.1/10</option><option value="ม.1/11">ม.1/11</option><option value="ม.1/12">ม.1/12</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- แถบเครื่องมือตั้งค่าด่วน (Quick Presets) -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-5 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-3 rounded-2xl border border-slate-200">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-xs font-bold text-slate-700 mr-1 flex items-center gap-1">
+            <i class="fa-solid fa-bolt text-amber-500"></i>จัดการด่วน:
+          </span>
+          <button type="button" onclick="setAllWorksheetsStatus(true)" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-xl transition shadow-xs active:scale-95">
+            🟢 เปิดครบ 18 ใบงาน
+          </button>
+          <button type="button" onclick="setAllWorksheetsStatus(false)" class="text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-xl transition shadow-xs active:scale-95">
+            🔴 ปิดทั้งหมด (1-18)
+          </button>
+          <div class="h-4 w-px bg-slate-300 mx-1 hidden md:block"></div>
+          <button type="button" onclick="setUnitWorksheetsStatus(1, true)" class="text-[11px] bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold px-2.5 py-1 rounded-lg transition active:scale-95">
+            เปิดเฉพาะหน่วย 1 (1-4)
+          </button>
+          <button type="button" onclick="setUnitWorksheetsStatus(2, true)" class="text-[11px] bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-semibold px-2.5 py-1 rounded-lg transition active:scale-95">
+            เปิดเฉพาะหน่วย 2 (5-9)
+          </button>
+          <button type="button" onclick="setUnitWorksheetsStatus(3, true)" class="text-[11px] bg-teal-100 hover:bg-teal-200 text-teal-800 font-semibold px-2.5 py-1 rounded-lg transition active:scale-95">
+            เปิดเฉพาะหน่วย 3 (10-12)
+          </button>
+          <button type="button" onclick="setUnitWorksheetsStatus(4, true)" class="text-[11px] bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold px-2.5 py-1 rounded-lg transition active:scale-95">
+            เปิดเฉพาะหน่วย 4 (13-18)
+          </button>
+        </div>
+        <div class="text-xs font-semibold text-slate-600 flex items-center gap-2">
+          <span>สถานะที่เปิดอยู่:</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 font-bold text-slate-800 font-mono shadow-xs">
+            <span id="openWsCountBadge" class="text-emerald-600">18</span> / 18 ใบงาน
+          </span>
+        </div>
+      </div>
+
+      <!-- ผังการ์ดเลือกเปิด-ปิดรายใบงาน (แบ่งแยกตาม 4 หน่วยการเรียนรู้) -->
+      <div id="worksheetSwitchGrid" class="space-y-4">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- แถบล่าง บันทึกการเปลี่ยนแปลง -->
+      <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
+        <p class="leading-relaxed">
+          💡 <b>คำแนะนำ:</b> สามารถคลิกที่ปุ่ม <span class="text-emerald-700 font-bold">🟢 เปิด</span> หรือ <span class="text-rose-700 font-bold">🔴 ปิด</span> ของแต่ละใบงานได้ทันที ใบงานที่ถูกปิดจะขึ้นเครื่องหมายแม่กุญแจ 🔒 ในหน้าของนักเรียน และไม่อนุญาตให้กดเข้าทำ
+        </p>
+        <button type="button" onclick="saveWorksheetAccessSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center justify-center space-x-2 shrink-0 active:scale-95">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>บันทึกการตั้งค่าใบงาน</span>
+        </button>
+      </div>
+    </section>
+
+
+
+    <!-- ส่วนที่ 2: ตารางมอนิเตอร์คะแนนเรียลไทม์ (Live Score Monitor) -->
+    <section class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 text-base sm:text-lg flex items-center space-x-2">
+            <i class="fa-solid fa-table-list text-blue-600"></i>
+            <span>รายงานคะแนนนักเรียนเรียลไทม์ (Scores Log)</span>
+          </h2>
+          <p class="text-xs text-slate-500 font-body">แสดงข้อมูลการส่งงานของนักเรียน พร้อมฟังก์ชันค้นหาและส่งออก CSV</p>
+        </div>
+
+        <!-- ตัวกรองข้อมูล (Filters) & Export -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- เลือกห้อง -->
+          <select id="filterRoom" onchange="renderScoresTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs">
+            <option value="">ทุกห้องเรียน</option>
+            <option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option>
+            <option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option><option value="ม.1/6">ม.1/6</option>
+            <option value="ม.1/7">ม.1/7</option><option value="ม.1/8">ม.1/8</option><option value="ม.1/9">ม.1/9</option>
+            <option value="ม.1/10">ม.1/10</option><option value="ม.1/11">ม.1/11</option><option value="ม.1/12">ม.1/12</option>
+          </select>
+
+          <!-- เลือกหน่วย -->
+          <select id="filterUnit" onchange="renderScoresTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs">
+            <option value="">ทุกหน่วยการเรียนรู้</option>
+            <option value="1">หน่วยที่ 1</option>
+            <option value="2">หน่วยที่ 2</option>
+            <option value="3">หน่วยที่ 3</option>
+            <option value="4">หน่วยที่ 4</option>
+          </select>
+
+          <!-- เลือกใบงาน (1-18) -->
+          <select id="filterWorksheet" onchange="renderScoresTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs">
+            <option value="">ทุกใบงาน (1-18)</option>
+            <option value="1">ใบงานที่ 1</option><option value="2">ใบงานที่ 2</option><option value="3">ใบงานที่ 3</option>
+            <option value="4">ใบงานที่ 4</option><option value="5">ใบงานที่ 5</option><option value="6">ใบงานที่ 6</option>
+            <option value="7">ใบงานที่ 7</option><option value="8">ใบงานที่ 8</option><option value="9">ใบงานที่ 9</option>
+            <option value="10">ใบงานที่ 10</option><option value="11">ใบงานที่ 11</option><option value="12">ใบงานที่ 12</option>
+            <option value="13">ใบงานที่ 13</option><option value="14">ใบงานที่ 14</option><option value="15">ใบงานที่ 15</option>
+            <option value="16">ใบงานที่ 16</option><option value="17">ใบงานที่ 17</option><option value="18">ใบงานที่ 18</option>
+          </select>
+
+          <!-- ค้นหาชื่อ/เลขที่ -->
+          <div class="relative">
+            <input type="text" id="filterSearch" oninput="renderScoresTable()" placeholder="ค้นชื่อ หรือ เลขที่..." class="bg-slate-50 border border-slate-300 rounded-xl pl-7 pr-3 py-1.5 text-xs w-36 sm:w-44 focus:ring-1 focus:ring-blue-500">
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+          </div>
+
+          <!-- ปุ่ม Export CSV -->
+          <button onclick="exportScoresToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center space-x-1 shadow-sm">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>ส่งออก CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ตารางคะแนน -->
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left border-collapse text-xs font-body">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-sans font-semibold">
+              <th class="p-3">#</th>
+              <th class="p-3">เวลาส่ง</th>
+              <th class="p-3">ห้อง</th>
+              <th class="p-3">เลขที่</th>
+              <th class="p-3">ชื่อ - นามสกุล</th>
+              <th class="p-3">ใบงาน</th>
+              <th class="p-3 text-center">คะแนน</th>
+              <th class="p-3 text-center">ร้อยละ</th>
+              <th class="p-3 text-center">ทำครั้งที่</th>
+              <th class="p-3 text-center">สถานะ</th>
+              <th class="p-3 text-center">คำตอบ</th>
+            </tr>
+          </thead>
+          <tbody id="scoresTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="9" class="p-6 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="flex items-center justify-between text-xs text-slate-500 mt-3 px-1">
+        <div>แสดง <span id="showingCount" class="font-bold text-slate-700">0</span> รายการ</div>
+        <div class="text-[11px]">* บันทึกจากแท็บ Scores_Log ใน Google Sheets</div>
+      </div>
+    </section>
+
+    <!-- ส่วนที่ 3: ระบบจัดการข้อมูลนักเรียนและรหัสผ่าน (Student Management System) -->
+    <section class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 text-base sm:text-lg flex items-center space-x-2">
+            <i class="fa-solid fa-users-gear text-blue-600"></i>
+            <span>ระบบจัดการข้อมูลนักเรียนและรหัสผ่าน (Student Management System)</span>
+          </h2>
+          <p class="text-xs text-slate-500 font-body">บังคับใช้รหัสผ่านเป็นเลขประจำตัว สามารถเพิ่ม ลบ แก้ไขข้อมูล หรือย้ายห้อง/เปลี่ยนชั้นเรียนได้ทันที</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- ปุ่มเพิ่มนักเรียนใหม่ -->
+          <button onclick="openAddStudentModal()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5 shadow-sm active:scale-95">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>เพิ่มนักเรียนใหม่</span>
+          </button>
+
+          <!-- กรองตามห้อง -->
+          <select id="filterStudentRoom" onchange="renderStudentsTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs">
+            <option value="">ทุกห้องเรียน</option>
+            <option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option>
+            <option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option><option value="ม.1/6">ม.1/6</option>
+            <option value="ม.1/7">ม.1/7</option><option value="ม.1/8">ม.1/8</option><option value="ม.1/9">ม.1/9</option>
+            <option value="ม.1/10">ม.1/10</option><option value="ม.1/11">ม.1/11</option><option value="ม.1/12">ม.1/12</option>
+          </select>
+
+          <!-- ค้นหาชื่อ/เลขที่/เลขประจำตัว -->
+          <div class="relative">
+            <input type="text" id="searchStudentName" oninput="renderStudentsTable()" placeholder="ค้นชื่อ / เลขที่ / เลขประจำตัว..." class="bg-slate-50 border border-slate-300 rounded-xl pl-7 pr-3 py-1.5 text-xs w-44 sm:w-52 focus:ring-1 focus:ring-blue-500">
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- ตารางรายชื่อนักเรียน -->
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left border-collapse text-xs font-body">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-sans font-semibold">
+              <th class="p-3">#</th>
+              <th class="p-3">ห้อง</th>
+              <th class="p-3 text-center">เลขที่</th>
+              <th class="p-3">ชื่อ - นามสกุล</th>
+              <th class="p-3 text-center">เลขประจำตัว (รหัสผ่าน)</th>
+              <th class="p-3 text-center">สถานะ</th>
+              <th class="p-3 text-center">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="7" class="p-6 text-center text-slate-400">กำลังโหลดรายชื่อนักเรียน...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center justify-between text-xs text-slate-500 mt-3 px-1">
+        <div>นักเรียนทั้งหมดในระบบ <span id="registeredStudentCount" class="font-bold text-slate-700">0</span> คน</div>
+        <div class="text-[11px]">* บันทึกซิงค์ตรงกับแท็บ Students_List ใน Google Sheets</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: เพิ่มนักเรียนใหม่ (Add Student Modal) -->
+  <!-- ======================================================== -->
+  <div id="addStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-base text-slate-800 flex items-center space-x-2">
+          <i class="fa-solid fa-user-plus text-blue-600"></i>
+          <span>เพิ่มข้อมูลนักเรียนใหม่</span>
+        </h3>
+        <button onclick="closeAddStudentModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ห้องเรียน</label>
+          <select id="addRoom" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option>
+            <option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option><option value="ม.1/6">ม.1/6</option>
+            <option value="ม.1/7">ม.1/7</option><option value="ม.1/8">ม.1/8</option><option value="ม.1/9">ม.1/9</option>
+            <option value="ม.1/10">ม.1/10</option><option value="ม.1/11">ม.1/11</option><option value="ม.1/12">ม.1/12</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เลขที่</label>
+          <input type="number" id="addStudentNo" min="1" max="60" placeholder="เช่น 35" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อ - นามสกุล</label>
+          <input type="text" id="addFullName" placeholder="เช่น ด.ช. สมเกียรติ มั่นคง" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-body focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            <span>เลขประจำตัวนักเรียน (บังคับใช้เป็นรหัสผ่าน)</span>
+          </label>
+          <input type="text" id="addStudentId" maxlength="15" placeholder="เช่น 10135 หรือเลขประจำตัวโรงเรียน" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <p class="text-[10px] text-slate-400 mt-1">* เลขประจำตัวนี้จะถูกใช้เป็นรหัสผ่านในการล็อกอินเข้าสู่ระบบ</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 mt-5 pt-3 border-t border-slate-100">
+        <button onclick="closeAddStudentModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+          ยกเลิก
+        </button>
+        <button onclick="submitAddStudent()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-md">
+          บันทึกข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: แก้ไขข้อมูลนักเรียน / เปลี่ยนชั้น-ย้ายห้อง (Edit Student Modal) -->
+  <!-- ======================================================== -->
+  <div id="editStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-base text-slate-800 flex items-center space-x-2">
+          <i class="fa-solid fa-user-pen text-indigo-600"></i>
+          <span>แก้ไขข้อมูลนักเรียน / ย้ายห้อง-เปลี่ยนชั้น</span>
+        </h3>
+        <button onclick="closeEditStudentModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editOldRoom">
+      <input type="hidden" id="editOldStudentNo">
+
+      <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 mb-4 text-xs text-indigo-900 flex items-center space-x-2">
+        <i class="fa-solid fa-circle-info text-indigo-600 text-sm"></i>
+        <span>ข้อมูลเดิม: <b id="editOldInfoText">-</b></span>
+      </div>
+
+      <div class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            <span>ย้ายไปห้องเรียน (เปลี่ยนชั้นเรียน)</span>
+          </label>
+          <select id="editNewRoom" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option>
+            <option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option><option value="ม.1/6">ม.1/6</option>
+            <option value="ม.1/7">ม.1/7</option><option value="ม.1/8">ม.1/8</option><option value="ม.1/9">ม.1/9</option>
+            <option value="ม.1/10">ม.1/10</option><option value="ม.1/11">ม.1/11</option><option value="ม.1/12">ม.1/12</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เลขที่ใหม่</label>
+          <input type="number" id="editNewStudentNo" min="1" max="60" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อ - นามสกุล</label>
+          <input type="text" id="editFullName" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-body focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            <span>เลขประจำตัวนักเรียน (รหัสผ่าน)</span>
+          </label>
+          <input type="text" id="editStudentId" maxlength="15" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 mt-5 pt-3 border-t border-slate-100">
+        <button onclick="closeEditStudentModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+          ยกเลิก
+        </button>
+        <button onclick="submitEditStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-md">
+          บันทึกการแก้ไข
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ตั้งค่า API URL -->
+  <div id="apiModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-base text-slate-800 flex items-center space-x-2">
+          <i class="fa-solid fa-cloud text-blue-600"></i>
+          <span>ตั้งค่า Google Apps Script Web App URL</span>
+        </h3>
+        <button onclick="closeApiModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 font-body mb-3">
+        ระบุ Web App URL ที่ได้จาก Deploy ของ Google Apps Script (ตัวเดียวกับที่ใส่ใน index.html):
+      </p>
+      <input type="url" id="adminGasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4">
+      <div class="flex items-center justify-end space-x-2">
+        <button onclick="saveAdminApiUrl()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition">
+          บันทึกการเชื่อมต่อ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY_GAS = 'agy_worksheet_gas_url';
+    let gasUrl = localStorage.getItem(STORAGE_KEY_GAS) || '';
+    
+    // ข้อมูลหน่วยความจำ
+    let roomsData = [];
+    let scoresData = [];
+    let studentsData = [];
+    let autoRefreshTimer = null;
+
+    function toggleTeacherPinEye() {
+      const inp = document.getElementById('teacherPassword');
+      const icon = document.getElementById('teacherPinEyeIcon');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        inp.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    // ยืนยันตัวตนครูผู้สอน (Teacher Authentication)
+    async function unlockDashboard() {
+      const userInput = document.getElementById('teacherUsername');
+      const passInput = document.getElementById('teacherPassword');
+      const username = (userInput ? userInput.value : '').trim();
+      const password = (passInput ? passInput.value : '').trim();
+      const btn = document.getElementById('btnUnlockDashboard');
+
+      if (!username || !password) {
+        alert('กรุณากรอกทั้งชื่อผู้ใช้และรหัสผ่าน');
+        return;
+      }
+
+      // หากมีการเชื่อมต่อ GAS Web App ให้ยืนยันรหัสกับ Server โดยตรง
+      if (gasUrl) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังตรวจสอบสิทธิ์...`;
+        }
+
+        try {
+          const resp = await fetch(`${gasUrl}?action=verify_teacher&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+            method: 'GET',
+            mode: 'cors'
+          });
+          const res = await resp.json();
+
+          if (!res.success) {
+            alert('❌ ' + (res.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'));
+            return;
+          }
+
+          const sessionToken = res.token || (username + ':' + password);
+          sessionStorage.setItem('teacher_authenticated', 'true');
+          sessionStorage.setItem('teacher_username', username);
+          sessionStorage.setItem('teacher_secret_key', sessionToken);
+          document.getElementById('pinGateModal').classList.add('hidden');
+          initDashboard();
+
+        } catch (err) {
+          console.warn('Backend verify error:', err);
+          // กรณีออฟไลน์ ตรวจสอบกับรหัสความปลอดภัย
+          if (username === 'thanin' && password === 'krujamev8') {
+            sessionStorage.setItem('teacher_authenticated', 'true');
+            sessionStorage.setItem('teacher_username', username);
+            sessionStorage.setItem('teacher_secret_key', 'thanin:krujamev8');
+            document.getElementById('pinGateModal').classList.add('hidden');
+            initDashboard();
+          } else {
+            alert('❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+          }
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-unlock mr-2"></i><span>เข้าสู่ระบบแดชบอร์ด</span>`;
+          }
+        }
+      } else {
+        // Offline Mode
+        if (username === 'thanin' && password === 'krujamev8') {
+          sessionStorage.setItem('teacher_authenticated', 'true');
+          sessionStorage.setItem('teacher_username', username);
+          sessionStorage.setItem('teacher_secret_key', 'thanin:krujamev8');
+          document.getElementById('pinGateModal').classList.add('hidden');
+          initDashboard();
+        } else {
+          alert('❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        }
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('teacher_authenticated') === 'true') {
+        document.getElementById('pinGateModal').classList.add('hidden');
+        initDashboard();
+      }
+    });
+
+    function initDashboard() {
+      if (gasUrl) {
+        document.getElementById('apiStatusBadge').innerText = 'เชื่อมต่อแล้ว';
+        document.getElementById('apiStatusBadge').classList.add('text-emerald-300');
+      }
+      loadSavedWsAccessConfig();
+      loadAdminData();
+    }
+
+    function openApiModal() {
+      document.getElementById('adminGasUrl').value = gasUrl;
+      document.getElementById('apiModal').classList.remove('hidden');
+    }
+
+    function closeApiModal() {
+      document.getElementById('apiModal').classList.add('hidden');
+    }
+
+    function saveAdminApiUrl() {
+      const url = document.getElementById('adminGasUrl').value.trim();
+      gasUrl = url;
+      localStorage.setItem(STORAGE_KEY_GAS, url);
+      closeApiModal();
+      alert('บันทึก URL เรียบร้อย');
+      loadSavedWsAccessConfig();
+      loadAdminData();
+    }
+
+    /**
+     * ดึงข้อมูลสถานะห้องและคะแนนทั้งหมดจาก Google Apps Script
+     */
+    async function loadAdminData() {
+      const syncStatus = document.getElementById('syncStatus');
+      syncStatus.innerText = 'กำลังโหลดข้อมูล...';
+
+      try {
+        if (gasUrl) {
+          const teacherToken = sessionStorage.getItem('teacher_secret_key') || '';
+          const resp = await fetch(`${gasUrl}?action=get_admin_data&teacher_token=${encodeURIComponent(teacherToken)}`, { method: 'GET', mode: 'cors' });
+          const res = await resp.json();
+          if (res.success) {
+            roomsData = res.rooms || [];
+            scoresData = res.scores || [];
+            studentsData = res.students || [];
+            document.getElementById('serverClock').innerText = res.server_time_formatted || '-';
+            syncStatus.innerText = 'ข้อมูลอัปเดตล่าสุด: ' + new Date().toLocaleTimeString('th-TH');
+          } else {
+            throw new Error(res.error || 'Server returned error');
+          }
+        } else {
+          // โหมด Demo Data เมื่อยังไม่เชื่อมต่อ URL
+          loadMockDemoData();
+          syncStatus.innerText = 'โหมดแสดงตัวอย่าง (Demo Mode - ยังไม่ได้ใส่ Web App URL)';
+          document.getElementById('serverClock').innerText = new Date().toLocaleTimeString('th-TH');
+        }
+
+        renderRoomCards();
+        renderWorksheetSwitchGrid();
+        renderScoresTable();
+        renderStudentsTable();
+        updateStats();
+
+      } catch (err) {
+        console.error('Admin Load Error:', err);
+        syncStatus.innerText = 'ไม่สามารถดึงข้อมูลจาก GAS ได้ (ตรวจสอบ URL)';
+        loadMockDemoData();
+        renderRoomCards();
+        renderWorksheetSwitchGrid();
+        renderScoresTable();
+        renderStudentsTable();
+        updateStats();
+      }
+    }
+
+    function loadMockDemoData() {
+      roomsData = [];
+      for (let i = 1; i <= 12; i++) {
+        roomsData.push({
+          room: `ม.1/${i}`,
+          status: i === 1 ? 'OPEN' : (i === 12 ? 'CLOSED' : 'AUTO')
+        });
+      }
+      // โหลดประวัติการส่งงานจริงจาก Local Storage ของระบบ (ที่นักเรียนทำบนเครื่อง)
+      let localLogs = [];
+      try {
+        const savedLogs = localStorage.getItem('agy_system_scores_log');
+        if (savedLogs) {
+          localLogs = JSON.parse(savedLogs);
+        }
+      } catch (e) {
+        localLogs = [];
+      }
+
+      const defaultDemoScores = [
+        {
+          timestamp: '2026-10-26 09:15:20',
+          room: 'ม.1/1',
+          student_no: '1',
+          full_name: 'ด.ช. กิตติศักดิ์ พัฒนา',
+          worksheet_id: 1,
+          worksheet_title: 'นักสำรวจเทคโนโลยีรอบตัว',
+          unit: 'หน่วยที่ 1',
+          score: 10,
+          max_score: 10,
+          percentage: '100%',
+          attempts: 1,
+          answers: {
+            "ws1_item1": "tech",
+            "ws1_item1_reason": "มนุษย์ประดิษฐ์ขึ้นเพื่อช่วยผ่อนแรงในการเดินทาง",
+            "ws1_item2": "nature",
+            "ws1_item2_reason": "เกิดขึ้นเองตามธรรมชาติ มนุษย์ไม่ได้สร้าง",
+            "ws1_item3": "tech",
+            "ws1_item3_reason": "เครื่องมือที่มนุษย์ประดิษฐ์ขึ้นเพื่อตัดสิ่งของ",
+            "ws1_item4": "nature",
+            "ws1_item4_reason": "ปรากฏการณ์ธรรมชาติของวัฏจักรน้ำ",
+            "ws1_item5": "tech",
+            "ws1_item5_reason": "มนุษย์สร้างเพื่อใช้ติดต่อสื่อสารระยะไกล",
+            "ws1_item6": "tech",
+            "ws1_item6_reason": "อุปกรณ์เขียนที่สร้างจากแกรไฟต์และไม้",
+            "ws1_item7": "tech",
+            "ws1_item7_reason": "อุปกรณ์บำบัดน้ำให้สะอาดปลอดภัย",
+            "ws1_item8": "nature",
+            "ws1_item8_reason": "สสารตามธรรมชาติ ไม่ผ่านการดัดแปลง",
+            "ws1_p2_1_name": "กระดานไวท์บอร์ด",
+            "ws1_p2_1_type": "ชิ้นงาน",
+            "ws1_p2_1_purpose": "ใช้เขียนอธิบายบทเรียนให้มองเห็นชัดเจนทั้งห้อง",
+            "ws1_p2_1_solve": "ช่วยให้สอนและอธิบายนักเรียนพร้อมกันได้อย่างทั่วถึง",
+            "ws1_p3_q1_sel": "not_always",
+            "ws1_p3_q1_text": "ไม่จำเป็น เพราะเทคโนโลยีรวมถึงสิ่งของธรรมดาอย่างกรรไกร ดินสอ หรือระบบวิธีการด้วย",
+            "ws1_p3_q2_sel": "yes",
+            "ws1_p3_q2_text": "เป็นเทคโนโลยี เพราะมนุษย์สร้างขึ้นเพื่อตอบสนองการเขียนบันทึก",
+            "ws1_p4_def": "สิ่งที่มนุษย์สร้างหรือพัฒนาขึ้น เพื่อแก้ปัญหาหรือสนองความต้องการ",
+            "ws1_p4_purp": "ช่วยแก้ปัญหา อำนวยความสะดวก และเพิ่มประสิทธิภาพการทำงาน"
+          }
+        },
+        {
+          timestamp: '2026-10-26 09:20:45',
+          room: 'ม.1/1',
+          student_no: '2',
+          full_name: 'ด.ญ. ปรียาพร ใจดี',
+          worksheet_id: 2,
+          worksheet_title: 'เทคโนโลยีกับงานอาชีพ',
+          unit: 'หน่วยที่ 1',
+          score: 8.5,
+          max_score: 10,
+          percentage: '85%',
+          attempts: 1,
+          answers: {
+            "ws2_p1_1": "ประหยัดแรงงานและเวลาในการซักผ้า",
+            "ws2_p1_2": "ช่วยติดต่อสื่อสารและค้นหาข้อมูลสะดวก",
+            "ws2_p1_3": "กรองสิ่งสกปรกทำให้น้ำสะอาดปลอดภัย",
+            "ws2_p1_4": "ช่วยเก็บเกี่ยวข้าวได้รวดเร็วทันเวลา",
+            "ws2_p1_5": "บดผสมอาหารได้ละเอียดสม่ำเสมอ",
+            "ws2_p4_1": "จ",
+            "ws2_p4_2": "ค",
+            "ws2_p4_3": "ข",
+            "ws2_p4_4": "ง",
+            "ws2_p4_5": "ก",
+            "ws2_p3_q1": "รถเกี่ยวข้าว",
+            "ws2_p3_q2": "แก้ปัญหาการขาดแคลนแรงงานคนและใช้เวลานาน",
+            "ws2_p5_summary": "เทคโนโลยีช่วยให้ทุกอาชีพทำงานได้อย่างมีประสิทธิภาพและประหยัดต้นทุน"
+          }
+        }
+      ];
+
+      scoresData = localLogs.length > 0 ? [...localLogs, ...defaultDemoScores] : defaultDemoScores;
+
+      // โหลดข้อมูลนักเรียนจากที่บันทึกไว้ในเครื่อง (ถ้ามี) เพื่อให้แชร์กับหน้า index.html
+      const savedStudents = localStorage.getItem('agy_system_students_db');
+      if (savedStudents) {
+        try {
+          const parsed = JSON.parse(savedStudents);
+          // หากเป็นข้อมูลเดิมที่มีมากกว่า 10 คน ให้รีเซ็ตเหลือตัวอย่าง 3 คน
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 10) {
+            studentsData = parsed;
+          }
+        } catch(e) {
+          studentsData = [];
+        }
+      }
+
+      if (!studentsData || studentsData.length === 0) {
+        studentsData = [
+          { room: 'ม.1/1', student_no: 1, full_name: 'ด.ช. กิตติศักดิ์ พัฒนา', pin: '10101' },
+          { room: 'ม.1/1', student_no: 2, full_name: 'ด.ญ. ชลธิชา ใจดี', pin: '10102' },
+          { room: 'ม.1/2', student_no: 1, full_name: 'ด.ช. ณัฐดนัย สมาร์ต', pin: '10201' }
+        ];
+        localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      }
+    }
+
+    /**
+     * อัปเดตตัวเลขสถิติภาพรวม
+     */
+    function updateStats() {
+      document.getElementById('statTotalSubmissions').innerText = scoresData.length;
+      
+      let sum = 0;
+      let openCount = 0;
+      scoresData.forEach(s => sum += Number(s.score || 0));
+      roomsData.forEach(r => {
+        if (r.status === 'OPEN') openCount++;
+      });
+
+      const avg = scoresData.length > 0 ? (sum / scoresData.length).toFixed(1) : '0.0';
+      document.getElementById('statAvgScore').innerText = avg;
+      document.getElementById('statAvgPercentage').innerText = scoresData.length > 0 ? `${((avg / 10) * 100).toFixed(0)}% ของคะแนนเต็ม` : '0%';
+      document.getElementById('statOpenRooms').innerText = openCount;
+    }
+
+    /**
+     * วาดการ์ด 12 ห้องเรียน
+     */
+    function renderRoomCards() {
+      const container = document.getElementById('roomCardsGrid');
+      container.innerHTML = '';
+
+      roomsData.forEach(r => {
+        const status = (r.status || 'AUTO').toUpperCase();
+        let badgeColor = 'bg-slate-100 text-slate-700 border-slate-300';
+        let statusText = '⏱️ AUTO';
+
+        if (status === 'OPEN') {
+          badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300 animate-pulse';
+          statusText = '🟢 เปิดอยู่';
+        } else if (status === 'CLOSED') {
+          badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+          statusText = '🔴 ปิดรับ';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:shadow-md transition';
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-sm text-slate-800">${r.room}</span>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeColor}">${statusText}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1 pt-2 border-t border-slate-200">
+            <button onclick="setRoomStatus('${r.room}', 'OPEN')" title="เปิดทันที" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[10px] font-bold py-1 rounded transition text-center">
+              เปิด
+            </button>
+            <button onclick="setRoomStatus('${r.room}', 'AUTO')" title="ตามเวลา AUTO" class="bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-700 text-[10px] font-bold py-1 rounded transition text-center">
+              AUTO
+            </button>
+            <button onclick="setRoomStatus('${r.room}', 'CLOSED')" title="ปิดทันที" class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white text-[10px] font-bold py-1 rounded transition text-center">
+              ปิด
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /**
+     * สั่งเปลี่ยนสถานะห้องเรียนไปยัง Google Apps Script
+     */
+    async function setRoomStatus(room, newStatus) {
+      if (!confirm(`ยืนยันการเปลี่ยนสถานะของ ${room} เป็น "${newStatus}"?`)) return;
+
+      // อัปเดตในเครื่องทันทีเพื่อให้ครูเห็นผลไว
+      const target = roomsData.find(r => r.room === room);
+      if (target) target.status = newStatus;
+      renderRoomCards();
+      updateStats();
+
+      if (gasUrl) {
+        try {
+          await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'update_room_status',
+              room: room,
+              status: newStatus
+            })
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    async function updateAllRoomsStatus(newStatus) {
+      if (!confirm(`ต้องการเปลี่ยนสถานะของ "ทุกห้อง (ม.1/1 - ม.1/12)" เป็น "${newStatus}" พร้อมกันหรือไม่?`)) return;
+
+      roomsData.forEach(r => r.status = newStatus);
+      renderRoomCards();
+      updateStats();
+
+      if (gasUrl) {
+        try {
+          await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'update_room_status',
+              room: 'ALL',
+              status: newStatus
+            })
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    /**
+     * วาดตารางคะแนน พร้อมฟิลเตอร์
+     */
+    function renderScoresTable() {
+      const roomFilter = document.getElementById('filterRoom').value;
+      const unitFilter = document.getElementById('filterUnit').value;
+      const wsFilter = document.getElementById('filterWorksheet').value;
+      const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+
+      const tbody = document.getElementById('scoresTableBody');
+      tbody.innerHTML = '';
+
+      const filtered = scoresData.filter(s => {
+        if (roomFilter && s.room !== roomFilter) return false;
+        if (unitFilter && !String(s.unit).includes(unitFilter)) return false;
+        if (wsFilter && String(s.worksheet_id) !== wsFilter) return false;
+        if (search) {
+          const matchName = String(s.full_name).toLowerCase().includes(search);
+          const matchNo = String(s.student_no).includes(search);
+          if (!matchName && !matchNo) return false;
+        }
+        return true;
+      });
+
+      currentRenderedFilteredScores = filtered;
+      document.getElementById('showingCount').innerText = filtered.length;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((row, idx) => {
+        const scoreNum = Number(row.score || 0);
+        const maxNum = Number(row.max_score || 10);
+        const isPass = (scoreNum / maxNum) >= 0.5;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+        tr.innerHTML = `
+          <td class="p-3 text-slate-400 font-mono">${idx + 1}</td>
+          <td class="p-3 text-slate-500 whitespace-nowrap">${escapeHtml(row.timestamp || '-')}</td>
+          <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(row.room)}</td>
+          <td class="p-3 text-slate-600 font-mono text-center">${escapeHtml(row.student_no)}</td>
+          <td class="p-3 font-medium text-slate-800 whitespace-nowrap">${escapeHtml(row.full_name)}</td>
+          <td class="p-3 text-slate-700 whitespace-nowrap">
+            <span class="font-bold text-blue-600">ใบงานที่ ${escapeHtml(row.worksheet_id || '-')}</span> 
+            <span class="text-slate-400 text-[11px]">(${escapeHtml(row.worksheet_title || row.unit || '')})</span>
+          </td>
+          <td class="p-3 text-center font-bold font-mono ${scoreNum >= 8 ? 'text-emerald-600' : 'text-blue-600'}">${scoreNum} / ${maxNum}</td>
+          <td class="p-3 text-center font-mono font-semibold text-slate-600">${escapeHtml(row.percentage || '-')}</td>
+          <td class="p-3 text-center font-mono text-slate-600">${escapeHtml(row.attempts || 1)}</td>
+          <td class="p-3 text-center">
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+              ${isPass ? 'ผ่าน' : 'ปรับปรุง'}
+            </span>
+          </td>
+          <td class="p-3 text-center">
+            <button onclick="viewStudentAnswers(${idx})" class="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition active:scale-95 shadow-sm">
+              <i class="fa-solid fa-eye"></i> ดูคำตอบ
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /**
+     * ส่งออกคะแนนเป็นไฟล์ CSV
+     */
+    function exportScoresToCSV() {
+      if (scoresData.length === 0) {
+        alert('ไม่มีข้อมูลคะแนนที่จะส่งออก');
+        return;
+      }
+
+      function sanitizeCsv(val) {
+        if (val === undefined || val === null) return '';
+        let s = String(val).replace(/"/g, '""');
+        if (/^[=\+\-\@]/.test(s)) {
+          s = "'" + s;
+        }
+        return s;
+      }
+
+      let csv = "\uFEFFลำดับ,วันเวลา,ห้อง,เลขที่,ชื่อ-นามสกุล,ใบงานที่,ชื่อใบงาน,คะแนน,คะแนนเต็ม,ร้อยละ,ทำครั้งที่\n";
+      scoresData.forEach((s, idx) => {
+        csv += `"${idx + 1}","${sanitizeCsv(s.timestamp)}","${sanitizeCsv(s.room)}","${sanitizeCsv(s.student_no)}","${sanitizeCsv(s.full_name)}","${sanitizeCsv(s.worksheet_id || '')}","${sanitizeCsv(s.worksheet_title || s.unit || '')}","${sanitizeCsv(s.score)}","${sanitizeCsv(s.max_score)}","${sanitizeCsv(s.percentage)}","${sanitizeCsv(s.attempts || 1)}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `รายงานคะแนน_การออกแบบและเทคโนโลยี_ม1_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /**
+     * จัดการ Auto Refresh
+     */
+    function toggleAutoRefresh(checkbox) {
+      if (checkbox.checked) {
+        autoRefreshTimer = setInterval(() => {
+          loadSavedWsAccessConfig();
+      loadAdminData();
+        }, 15000);
+      } else {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      }
+    }
+
+        // ========================================================
+    // ฐานข้อมูลและระบบสวิตช์เปิด-ปิดใบงานรายใบ (Worksheet Switchboard)
+    // ========================================================
+    const WORKSHEETS_MASTER = [
+      { id: 1, unit: 1, title: 'นักสำรวจเทคโนโลยีรอบตัว', icon: 'fa-magnifying-glass' },
+      { id: 2, unit: 1, title: 'เทคโนโลยีกับงานอาชีพ', icon: 'fa-briefcase' },
+      { id: 3, unit: 1, title: 'เทคโนโลยีเปลี่ยนไปอย่างไร?', icon: 'fa-clock-rotate-left' },
+      { id: 4, unit: 1, title: 'อะไรทำให้เทคโนโลยีเปลี่ยน?', icon: 'fa-shuffle' },
+      { id: 5, unit: 2, title: 'แกะรอยระบบทางเทคโนโลยี', icon: 'fa-arrows-split-up-and-left' },
+      { id: 6, unit: 2, title: 'นักวิเคราะห์ระบบทางเทคโนโลยี', icon: 'fa-arrows-rotate' },
+      { id: 7, unit: 2, title: 'รู้จักวัสดุ รู้จักสมบัติ', icon: 'fa-cubes' },
+      { id: 8, unit: 2, title: 'เลือกวัสดุให้ถูกงาน', icon: 'fa-boxes-stacked' },
+      { id: 9, unit: 2, title: 'เครื่องมือไหน ใช้กับงานอะไร?', icon: 'fa-toolbox' },
+      { id: 10, unit: 3, title: 'ตามหาล้อและเพลา', icon: 'fa-gear' },
+      { id: 11, unit: 3, title: 'รู้จักอุปกรณ์ไฟฟ้าและอิเล็กทรอนิกส์', icon: 'fa-microchip' },
+      { id: 12, unit: 3, title: 'ทดลองวงจรไฟฟ้า สนุกคิด สนุกต่อ', icon: 'fa-bolt' },
+      { id: 13, unit: 4, title: 'นักสืบปัญหา ตามหาข้อมูล', icon: 'fa-user-secret' },
+      { id: 14, unit: 4, title: 'คิดหลายทาง วางแผนให้ชัด', icon: 'fa-lightbulb' },
+      { id: 15, unit: 4, title: 'ลองใช้ ตรวจดู ปรับปรุงให้ดีขึ้น', icon: 'fa-vial-circle-check' },
+      { id: 16, unit: 4, title: 'มองให้ชัด จับปัญหาให้ตรง', icon: 'fa-lightbulb' },
+      { id: 17, unit: 4, title: 'คิดแบบ วางแผน พร้อมสร้าง', icon: 'fa-compass-drafting' },
+      { id: 18, unit: 4, title: 'สร้างจริง ทดสอบจริง พัฒนาให้ดี', icon: 'fa-flag-checkered' }
+    ];
+
+    const STORAGE_KEY_WS_ACCESS = 'agy_worksheet_access_config';
+    let wsAccessConfig = {};
+
+    function loadSavedWsAccessConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_WS_ACCESS);
+        if (raw) {
+          wsAccessConfig = JSON.parse(raw);
+        }
+      } catch (e) {
+        console.warn('Could not load ws access config:', e);
+      }
+      if (!wsAccessConfig['ALL']) {
+        wsAccessConfig['ALL'] = {};
+        WORKSHEETS_MASTER.forEach(w => wsAccessConfig['ALL'][String(w.id)] = true);
+      }
+    }
+
+    function getWsStatusForRoom(room, wsId) {
+      if (wsAccessConfig[room] && wsAccessConfig[room][String(wsId)] !== undefined) {
+        return wsAccessConfig[room][String(wsId)];
+      }
+      if (wsAccessConfig['ALL'] && wsAccessConfig['ALL'][String(wsId)] !== undefined) {
+        return wsAccessConfig['ALL'][String(wsId)];
+      }
+      return true;
+    }
+
+    function toggleWorksheetAccess(wsId) {
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      if (!wsAccessConfig[room]) {
+        wsAccessConfig[room] = {};
+        WORKSHEETS_MASTER.forEach(w => {
+          wsAccessConfig[room][String(w.id)] = getWsStatusForRoom(room, w.id);
+        });
+      }
+      const current = getWsStatusForRoom(room, wsId);
+      wsAccessConfig[room][String(wsId)] = !current;
+      saveWsAccessConfigToStorage();
+      renderWorksheetSwitchGrid();
+    }
+
+    function setAllWorksheetsStatus(isOpen) {
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      if (!wsAccessConfig[room]) wsAccessConfig[room] = {};
+      WORKSHEETS_MASTER.forEach(w => {
+        wsAccessConfig[room][String(w.id)] = isOpen;
+      });
+      saveWsAccessConfigToStorage();
+      renderWorksheetSwitchGrid();
+    }
+
+    function setUnitWorksheetsStatus(unitNum, isOpen) {
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      if (!wsAccessConfig[room]) {
+        wsAccessConfig[room] = {};
+      }
+      WORKSHEETS_MASTER.forEach(w => {
+        if (w.unit === unitNum) {
+          wsAccessConfig[room][String(w.id)] = isOpen;
+        } else {
+          wsAccessConfig[room][String(w.id)] = !isOpen;
+        }
+      });
+      saveWsAccessConfigToStorage();
+      renderWorksheetSwitchGrid();
+    }
+
+    function toggleUnitAll(unitNum, isOpen) {
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      if (!wsAccessConfig[room]) {
+        wsAccessConfig[room] = {};
+        WORKSHEETS_MASTER.forEach(w => {
+          wsAccessConfig[room][String(w.id)] = getWsStatusForRoom(room, w.id);
+        });
+      }
+      WORKSHEETS_MASTER.filter(w => w.unit === unitNum).forEach(w => {
+        wsAccessConfig[room][String(w.id)] = isOpen;
+      });
+      saveWsAccessConfigToStorage();
+      renderWorksheetSwitchGrid();
+    }
+
+    function saveWsAccessConfigToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY_WS_ACCESS, JSON.stringify(wsAccessConfig));
+      } catch (e) {
+        console.warn('Could not save to localStorage:', e);
+      }
+    }
+
+    async function saveWorksheetAccessSettings() {
+      saveWsAccessConfigToStorage();
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      const roomLabel = room === 'ALL' ? 'ทุกห้องเรียน' : room;
+
+      if (gasUrl) {
+        try {
+          await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'update_worksheet_access',
+              room: room,
+              config: wsAccessConfig[room],
+              teacher_token: sessionStorage.getItem('teacher_secret_key') || ''
+            })
+          });
+        } catch (e) {
+          console.warn('Sync to GAS failed:', e);
+        }
+      }
+
+      alert(`✅ บันทึกสถานะการเปิด-ปิดใบงานสำหรับ "${roomLabel}" เรียบร้อยแล้ว!`);
+    }
+
+    function loadWorksheetAccessUI() {
+      renderWorksheetSwitchGrid();
+    }
+
+    function renderWorksheetSwitchGrid() {
+      const container = document.getElementById('worksheetSwitchGrid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
+      let openCount = 0;
+
+      const units = [
+        { unit: 1, title: 'หน่วยที่ 1: เทคโนโลยีรอบตัวและการเปลี่ยนแปลง', range: 'ใบงานที่ 1 - 4', border: 'border-blue-200', bg: 'bg-blue-50/50' },
+        { unit: 2, title: 'หน่วยที่ 2: ระบบทางเทคโนโลยี วัสดุ และเครื่องมือช่าง', range: 'ใบงานที่ 5 - 9', border: 'border-indigo-200', bg: 'bg-indigo-50/50' },
+        { unit: 3, title: 'หน่วยที่ 3: กลไกและไฟฟ้าพื้นฐาน', range: 'ใบงานที่ 10 - 12', border: 'border-emerald-200', bg: 'bg-emerald-50/50' },
+        { unit: 4, title: 'หน่วยที่ 4: กระบวนการออกแบบเชิงวิศวกรรม', range: 'ใบงานที่ 13 - 18', border: 'border-purple-200', bg: 'bg-purple-50/50' }
+      ];
+
+      units.forEach(u => {
+        const uWorksheets = WORKSHEETS_MASTER.filter(w => w.unit === u.unit);
+        const section = document.createElement('div');
+        section.className = `rounded-2xl p-4 border ${u.border} ${u.bg}`;
+
+        let cardsHtml = '';
+        uWorksheets.forEach(w => {
+          const isOpen = getWsStatusForRoom(room, w.id);
+          if (isOpen) openCount++;
+
+          cardsHtml += `
+            <div class="bg-white rounded-xl p-3 border ${isOpen ? 'border-emerald-300 shadow-xs' : 'border-slate-200 opacity-75'} flex items-center justify-between gap-2 transition hover:shadow-sm">
+              <div class="flex items-center space-x-2.5 overflow-hidden">
+                <span class="w-8 h-8 rounded-lg ${isOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'} flex items-center justify-center font-bold text-xs font-mono shrink-0">
+                  ${w.id}
+                </span>
+                <div class="truncate">
+                  <div class="font-bold text-xs text-slate-800 truncate">${w.title}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">ใบงานที่ ${w.id}</div>
+                </div>
+              </div>
+              <button type="button" onclick="toggleWorksheetAccess(${w.id})" class="px-3 py-1.5 rounded-xl font-bold text-xs transition active:scale-95 shrink-0 flex items-center space-x-1 shadow-xs ${isOpen ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'}">
+                <i class="fa-solid ${isOpen ? 'fa-lock-open' : 'fa-lock'} text-[11px]"></i>
+                <span>${isOpen ? 'เปิด' : 'ปิด'}</span>
+              </button>
+            </div>
+          `;
+        });
+
+        section.innerHTML = `
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/80">
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-xs text-slate-800">${u.title}</span>
+              <span class="text-[10px] text-slate-500 font-mono bg-white px-2 py-0.5 rounded-full border border-slate-200">${u.range}</span>
+            </div>
+            <div class="flex items-center space-x-2 text-xs">
+              <button type="button" onclick="toggleUnitAll(${u.unit}, true)" class="text-[11px] font-semibold text-emerald-700 hover:underline">เปิดทั้งหน่วย</button>
+              <span class="text-slate-300">|</span>
+              <button type="button" onclick="toggleUnitAll(${u.unit}, false)" class="text-[11px] font-semibold text-rose-700 hover:underline">ปิดทั้งหน่วย</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            ${cardsHtml}
+          </div>
+        `;
+        container.appendChild(section);
+      });
+
+      const badge = document.getElementById('openWsCountBadge');
+      if (badge) badge.innerText = openCount;
+    }
+
+
+    /**
+     * วาดตารางรายชื่อนักเรียนและรหัส PIN
+     */
+    function renderStudentsTable() {
+      const roomFilter = document.getElementById('filterStudentRoom') ? document.getElementById('filterStudentRoom').value : '';
+      const search = document.getElementById('searchStudentName') ? document.getElementById('searchStudentName').value.toLowerCase().trim() : '';
+      const tbody = document.getElementById('studentsTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      const filtered = studentsData.filter(s => {
+        if (roomFilter && s.room !== roomFilter) return false;
+        if (search) {
+          const matchName = String(s.full_name || '').toLowerCase().includes(search);
+          const matchNo = String(s.student_no || '').includes(search);
+          const matchPin = String(s.pin || '').toLowerCase().includes(search);
+          if (!matchName && !matchNo && !matchPin) return false;
+        }
+        return true;
+      });
+
+      if (document.getElementById('registeredStudentCount')) {
+        document.getElementById('registeredStudentCount').innerText = studentsData.length;
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">ยังไม่มีข้อมูลนักเรียนที่ค้นหาหรือลงทะเบียนในห้องนี้</td></tr>`;
+        return;
+      }
+
+      currentFilteredStudents = filtered;
+      filtered.forEach((st, idx) => {
+        const hasPin = Boolean(st.pin);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+        tr.innerHTML = `
+          <td class="p-3 text-slate-400 font-mono">${idx + 1}</td>
+          <td class="p-3 font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(st.room)}</td>
+          <td class="p-3 font-mono text-center font-bold text-slate-600">${escapeHtml(st.student_no)}</td>
+          <td class="p-3 font-medium text-slate-800 whitespace-nowrap">${escapeHtml(st.full_name || '-')}</td>
+          <td class="p-3 text-center font-mono font-bold text-blue-600 bg-blue-50/50">${hasPin ? escapeHtml(st.pin) : '<span class="text-slate-400 font-normal">ยังไม่ตั้ง</span>'}</td>
+          <td class="p-3 text-center whitespace-nowrap">
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-semibold ${hasPin ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+              ${hasPin ? 'พร้อมเข้าใช้งาน' : 'รอลงทะเบียน'}
+            </span>
+          </td>
+          <td class="p-3 text-center whitespace-nowrap">
+            <div class="flex items-center justify-center space-x-1.5">
+              <!-- ปุ่มแก้ไข / ย้ายห้อง -->
+              <button onclick="openEditStudentModalByIndex(${idx})" title="แก้ไขข้อมูล หรือย้ายห้อง/เปลี่ยนชั้นเรียน" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-semibold px-2 py-1 rounded-lg transition">
+                <i class="fa-solid fa-user-pen mr-1"></i>แก้ไข/ย้ายห้อง
+              </button>
+              <!-- ปุ่มรีเซ็ตรหัส -->
+              <button onclick="promptResetPinByIndex(${idx})" title="รีเซ็ตรหัสผ่าน/เลขประจำตัว" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-semibold px-2 py-1 rounded-lg transition">
+                <i class="fa-solid fa-key mr-1"></i>รีเซ็ต PIN
+              </button>
+              <!-- ปุ่มลบ -->
+              <button onclick="deleteStudentByIndex(${idx})" title="ลบนักเรียนคนนี้ออกจากระบบ" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-semibold px-2 py-1 rounded-lg transition">
+                <i class="fa-solid fa-trash-can mr-1"></i>ลบ
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /**
+     * ฟังก์ชันเปิด / ปิด Modal เพิ่มนักเรียน
+     */
+        let currentFilteredStudents = [];
+
+    function openEditStudentModalByIndex(idx) {
+      const st = currentFilteredStudents[idx];
+      if (st) openEditStudentModal(st.room, st.student_no);
+    }
+
+    function promptResetPinByIndex(idx) {
+      const st = currentFilteredStudents[idx];
+      if (st) promptResetPin(st.room, st.student_no, st.full_name);
+    }
+
+    function deleteStudentByIndex(idx) {
+      const st = currentFilteredStudents[idx];
+      if (st) deleteStudent(st.room, st.student_no, st.full_name);
+    }
+
+    function openAddStudentModal() {
+      document.getElementById('addStudentNo').value = '';
+      document.getElementById('addFullName').value = '';
+      document.getElementById('addStudentId').value = '';
+      document.getElementById('addStudentModal').classList.remove('hidden');
+    }
+
+    function closeAddStudentModal() {
+      document.getElementById('addStudentModal').classList.add('hidden');
+    }
+
+    /**
+     * ครูเพิ่มนักเรียนใหม่
+     */
+    async function submitAddStudent() {
+      const room = document.getElementById('addRoom').value.trim();
+      const studentNo = document.getElementById('addStudentNo').value.trim();
+      const fullName = document.getElementById('addFullName').value.trim();
+      const studentId = document.getElementById('addStudentId').value.trim();
+
+      if (!room || !studentNo || !fullName || !studentId) {
+        alert('กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง');
+        return;
+      }
+
+      // ตรวจสอบว่ามีห้องและเลขที่นี้ซ้ำหรือไม่
+      const exists = studentsData.some(s => s.room === room && String(s.student_no) === String(studentNo));
+      if (exists) {
+        alert(`ไม่สามารถเพิ่มได้ เนื่องจากห้อง ${room} เลขที่ ${studentNo} มีอยู่ในระบบแล้ว`);
+        return;
+      }
+
+      const newStudentObj = {
+        room: room,
+        student_no: studentNo,
+        full_name: fullName,
+        pin: studentId
+      };
+
+      studentsData.push(newStudentObj);
+      localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      renderStudentsTable();
+      closeAddStudentModal();
+
+      if (gasUrl) {
+        try {
+          const resp = await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'add_student',
+              room: room,
+              student_no: studentNo,
+              full_name: fullName,
+              student_id: studentId,
+              teacher_token: sessionStorage.getItem('teacher_secret_key') || ''
+            })
+          });
+          const res = await resp.json();
+          alert(res.message || 'เพิ่มนักเรียนใหม่สำเร็จ');
+        } catch (e) {
+          alert('บันทึกในระบบเรียบร้อย (อัปเดตในเครื่อง)');
+        }
+      } else {
+        alert(`เพิ่มนักเรียน ${fullName} (${room} เลขที่ ${studentNo}) เรียบร้อยแล้ว (รหัสผ่าน: ${studentId})`);
+      }
+    }
+
+    /**
+     * ฟังก์ชันเปิด / ปิด Modal แก้ไขข้อมูลและย้ายห้อง
+     */
+    function openEditStudentModal(room, studentNo) {
+      const target = studentsData.find(s => s.room === room && String(s.student_no) === String(studentNo));
+      if (!target) {
+        alert('ไม่พบข้อมูลนักเรียน');
+        return;
+      }
+
+      document.getElementById('editOldRoom').value = target.room;
+      document.getElementById('editOldStudentNo').value = target.student_no;
+      document.getElementById('editOldInfoText').innerText = `${target.full_name} (${target.room} เลขที่ ${target.student_no})`;
+
+      document.getElementById('editNewRoom').value = target.room;
+      document.getElementById('editNewStudentNo').value = target.student_no;
+      document.getElementById('editFullName').value = target.full_name || '';
+      document.getElementById('editStudentId').value = target.pin || '';
+
+      document.getElementById('editStudentModal').classList.remove('hidden');
+    }
+
+    function closeEditStudentModal() {
+      document.getElementById('editStudentModal').classList.add('hidden');
+    }
+
+    /**
+     * ครูบันทึกการแก้ไขข้อมูล / ย้ายห้อง-เปลี่ยนชั้นเรียน
+     */
+    async function submitEditStudent() {
+      const oldRoom = document.getElementById('editOldRoom').value.trim();
+      const oldNo = document.getElementById('editOldStudentNo').value.trim();
+      const newRoom = document.getElementById('editNewRoom').value.trim();
+      const newNo = document.getElementById('editNewStudentNo').value.trim();
+      const fullName = document.getElementById('editFullName').value.trim();
+      const studentId = document.getElementById('editStudentId').value.trim();
+
+      if (!newRoom || !newNo || !fullName || !studentId) {
+        alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+        return;
+      }
+
+      // หากมีการเปลี่ยนห้อง หรือเปลี่ยนเลขที่ ให้ตรวจสอบว่าปลายทางซ้ำกับคนอื่นหรือไม่
+      if (oldRoom !== newRoom || oldNo !== newNo) {
+        const conflict = studentsData.some(s => s.room === newRoom && String(s.student_no) === String(newNo));
+        if (conflict) {
+          alert(`ไม่สามารถย้ายได้ เนื่องจากห้อง ${newRoom} เลขที่ ${newNo} มีนักเรียนคนอื่นอยู่แล้ว`);
+          return;
+        }
+      }
+
+      const target = studentsData.find(s => s.room === oldRoom && String(s.student_no) === String(oldNo));
+      if (target) {
+        target.room = newRoom;
+        target.student_no = newNo;
+        target.full_name = fullName;
+        target.pin = studentId;
+      }
+
+      localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      renderStudentsTable();
+      closeEditStudentModal();
+
+      if (gasUrl) {
+        try {
+          const resp = await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'edit_student',
+              old_room: oldRoom,
+              old_student_no: oldNo,
+              new_room: newRoom,
+              new_student_no: newNo,
+              full_name: fullName,
+              student_id: studentId
+            })
+          });
+          const res = await resp.json();
+          alert(res.message || 'บันทึกการแก้ไขสำเร็จ');
+        } catch (e) {
+          alert('บันทึกการแก้ไขเรียบร้อย (อัปเดตในเครื่อง)');
+        }
+      } else {
+        alert(`อัปเดตข้อมูลของ ${fullName} (${oldRoom} -> ${newRoom} เลขที่ ${newNo}) เรียบร้อยแล้ว`);
+      }
+    }
+
+    /**
+     * ครูลบนักเรียนออกจากระบบ
+     */
+    async function deleteStudent(room, studentNo, fullName) {
+      const confirmDelete = confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนักเรียนคนนี้?\n\nชื่อ: ${fullName}\nห้อง: ${room} เลขที่: ${studentNo}\n\n* หากลบแล้ว ข้อมูลจะไม่สามารถกู้คืนได้`);
+      if (!confirmDelete) return;
+
+      const idx = studentsData.findIndex(s => s.room === room && String(s.student_no) === String(studentNo));
+      if (idx >= 0) {
+        studentsData.splice(idx, 1);
+      }
+
+      localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      renderStudentsTable();
+
+      if (gasUrl) {
+        try {
+          const resp = await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'delete_student',
+              room: room,
+              student_no: studentNo,
+              teacher_token: sessionStorage.getItem('teacher_secret_key') || ''
+            })
+          });
+          const res = await resp.json();
+          alert(res.message || 'ลบนักเรียนเรียบร้อย');
+        } catch (e) {
+          alert('ลบนักเรียนเรียบร้อย (อัปเดตในเครื่อง)');
+        }
+      } else {
+        alert(`ลบนักเรียน ${fullName} (${room} เลขที่ ${studentNo}) ออกจากระบบเรียบร้อย`);
+      }
+    }
+
+    /**
+     * ครูรีเซ็ตรหัส PIN ให้นักเรียน
+     */
+    async function promptResetPin(room, studentNo, fullName) {
+      const newPin = prompt(`กรุณาระบุรหัสผ่าน/เลขประจำตัวใหม่สำหรับ ${fullName} (${room} เลขที่ ${studentNo}):\n(ปล่อยว่างเพื่อล้างรหัสผ่าน ให้นักเรียนลงทะเบียนตั้งใหม่เอง)`, '');
+      if (newPin === null) return;
+
+      const target = studentsData.find(s => s.room === room && String(s.student_no) === String(studentNo));
+      if (target) {
+        target.pin = newPin.trim();
+        localStorage.setItem('agy_system_students_db', JSON.stringify(studentsData));
+      }
+      renderStudentsTable();
+
+      if (gasUrl) {
+        try {
+          const resp = await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'reset_student_pin',
+              room: room,
+              student_no: studentNo,
+              new_pin: newPin.trim()
+            })
+          });
+          const res = await resp.json();
+          alert(res.message || 'รีเซ็ต PIN เรียบร้อย');
+        } catch (e) {
+          alert('รีเซ็ต PIN เรียบร้อย (อัปเดตในเครื่อง)');
+        }
+      } else {
+        alert(`โหมดทดสอบ: รีเซ็ต PIN ของ ${fullName} เป็น "${newPin.trim() || 'ล้างรหัสแล้ว'}" เรียบร้อย`);
+      }
+    }
+  
+    // ========================================================
+    // ฟังก์ชันเปิดดูรายละเอียดคำตอบของนักเรียนรายบุคคล
+    // ========================================================
+    let currentRenderedFilteredScores = [];
+
+    // แผนที่แปลงรหัสคำถามให้อ่านเป็นภาษาไทยเข้าใจง่าย
+    // ========================================================
+    // ดิกชันนารีป้ายชื่อคำถามภาษาไทย ครบทั้ง 18 ใบงาน (Teacher Question Labels)
+    // ========================================================
+    const QUESTION_LABELS = {
+      // ใบงานที่ 1
+      'ws1_item1': 'ข้อ 1. จักรยาน (เป็น/ไม่เป็นเทคโนโลยี)', 'ws1_item1_reason': 'เหตุผลข้อ 1 (จักรยาน)',
+      'ws1_item2': 'ข้อ 2. ต้นไม้ตามธรรมชาติ', 'ws1_item2_reason': 'เหตุผลข้อ 2 (ต้นไม้)',
+      'ws1_item3': 'ข้อ 3. กรรไกร', 'ws1_item3_reason': 'เหตุผลข้อ 3 (กรรไกร)',
+      'ws1_item4': 'ข้อ 4. น้ำฝน', 'ws1_item4_reason': 'เหตุผลข้อ 4 (น้ำฝน)',
+      'ws1_item5': 'ข้อ 5. โทรศัพท์มือถือ', 'ws1_item5_reason': 'เหตุผลข้อ 5 (โทรศัพท์)',
+      'ws1_item6': 'ข้อ 6. ดินสอ', 'ws1_item6_reason': 'เหตุผลข้อ 6 (ดินสอ)',
+      'ws1_item7': 'ข้อ 7. เครื่องกรองน้ำ', 'ws1_item7_reason': 'เหตุผลข้อ 7 (เครื่องกรองน้ำ)',
+      'ws1_item8': 'ข้อ 8. ก้อนหินตามธรรมชาติ', 'ws1_item8_reason': 'เหตุผลข้อ 8 (ก้อนหิน)',
+      'ws1_p2_1_name': 'ตอนที่ 2 ตัวอย่างที่ 1: ชื่อสิ่งของ/วิธีการ', 'ws1_p2_1_type': 'ตอนที่ 2: ประเภท',
+      'ws1_p2_1_purpose': 'ตอนที่ 2: วัตถุประสงค์', 'ws1_p2_1_solve': 'ตอนที่ 2: การแก้ปัญหา',
+      'ws1_p3_q1_sel': 'ตอนที่ 3 ข้อ 1: ต้องเป็นเครื่องใช้ไฟฟ้าเสมอไปหรือไม่',
+      'ws1_p3_q1_text': 'ตอนที่ 3 ข้อ 1: เหตุผล',
+      'ws1_p3_q2_sel': 'ตอนที่ 3 ข้อ 2: ดินสอถือเป็นเทคโนโลยีหรือไม่',
+      'ws1_p3_q2_text': 'ตอนที่ 3 ข้อ 2: เหตุผล',
+      'ws1_p3_q3_ex': 'ตอนที่ 3 ข้อ 3: ตัวอย่างเทคโนโลยีที่เป็นวิธีการ',
+      'ws1_p3_q3_explain': 'ตอนที่ 3 ข้อ 3: คำอธิบายวิธีการ',
+      'ws1_p4_def': 'ตอนที่ 4: ความหมายของเทคโนโลยี',
+      'ws1_p4_purp': 'ตอนที่ 4: วัตถุประสงค์ของการสร้างเทคโนโลยี',
+
+      // ใบงานที่ 2
+      'ws2_p1_1': 'ตอนที่ 1: ประโยชน์ของเครื่องซักผ้า', 'ws2_p1_2': 'ตอนที่ 1: ประโยชน์ของโทรศัพท์มือถือ',
+      'ws2_p1_3': 'ตอนที่ 1: ประโยชน์ของเครื่องกรองน้ำ', 'ws2_p1_4': 'ตอนที่ 1: ประโยชน์ของรถเกี่ยวข้าว',
+      'ws2_p1_5': 'ตอนที่ 1: ประโยชน์ของเครื่องปั่น',
+      'ws2_p3_q1': 'ตอนที่ 3 ข้อ 1: เทคโนโลยีในสถานการณ์จริง', 'ws2_p3_q2': 'ตอนที่ 3 ข้อ 2: ปัญหาก่อนมีเทคโนโลยี',
+      'ws2_p4_1': 'ตอนที่ 4 ข้อ 1: จับคู่ด้านการเกษตร', 'ws2_p4_2': 'ตอนที่ 4 ข้อ 2: จับคู่ด้านการแพทย์',
+      'ws2_p4_3': 'ตอนที่ 4 ข้อ 3: จับคู่ด้านการสื่อสาร', 'ws2_p4_4': 'ตอนที่ 4 ข้อ 4: จับคู่ด้านการขนส่ง',
+      'ws2_p4_5': 'ตอนที่ 4 ข้อ 5: จับคู่ด้านการศึกษา', 'ws2_p5_summary': 'ตอนที่ 5: สรุปบทบาทเทคโนโลยีต่ออาชีพ',
+
+      // ใบงานที่ 3
+      'ws3_p1_past': 'ตอนที่ 1: การทำงานในอดีต', 'ws3_p1_now': 'ตอนที่ 1: การทำงานในปัจจุบัน',
+      'ws3_p3_q1': 'ตอนที่ 3 ข้อ 1: สิ่งที่เปลี่ยนไป', 'ws3_p3_q2': 'ตอนที่ 3 ข้อ 2: ปัจจัยที่ทำให้เปลี่ยน',
+      'ws3_p5_aspects': 'ตอนที่ 5: ด้านที่มีการเปลี่ยนแปลง', 'ws3_p5_help': 'ตอนที่ 5: ประโยชน์ที่ได้รับ',
+
+      // ใบงานที่ 4
+      'ws4_p1_1': 'ตอนที่ 1 ข้อ 1: ปัจจัยด้านความต้องการ', 'ws4_p1_2': 'ตอนที่ 1 ข้อ 2: ปัจจัยด้านความก้าวหน้าศาสตร์',
+      'ws4_p1_3': 'ตอนที่ 1 ข้อ 3: ปัจจัยด้านเศรษฐกิจ', 'ws4_p1_4': 'ตอนที่ 1 ข้อ 4: ปัจจัยด้านสังคม',
+      'ws4_p1_5': 'ตอนที่ 1 ข้อ 5: ปัจจัยด้านสิ่งแวดล้อม',
+      'ws4_p2_s1_change': 'ตอนที่ 2 สถานการณ์ 1: การเปลี่ยนแปลง', 'ws4_p2_s1_factor': 'ตอนที่ 2 สถานการณ์ 1: ปัจจัยหลัก',
+      'ws4_p2_s2_change': 'ตอนที่ 2 สถานการณ์ 2: การเปลี่ยนแปลง', 'ws4_p2_s2_factor': 'ตอนที่ 2 สถานการณ์ 2: ปัจจัยหลัก',
+      'ws4_p5_summary': 'ตอนที่ 4: สรุป 5 ปัจจัยการเปลี่ยนแปลง',
+
+      // ใบงานที่ 5 & 6 (ระบบทางเทคโนโลยี)
+      'ws5_p1_in': 'ใบงาน 5 ตอนที่ 1: ตัวป้อน (Input)', 'ws5_p1_proc': 'ใบงาน 5 ตอนที่ 1: กระบวนการ (Process)',
+      'ws5_p1_out': 'ใบงาน 5 ตอนที่ 1: ผลผลิต (Output)', 'ws5_p1_fb': 'ใบงาน 5 ตอนที่ 1: ข้อมูลย้อนกลับ (Feedback)',
+      'ws6_p1_kettle_in': 'ใบงาน 6 ตอนที่ 1: ตัวป้อนกระติกน้ำร้อน', 'ws6_p1_kettle_proc': 'ใบงาน 6 ตอนที่ 1: กระบวนการกระติกน้ำร้อน',
+
+      // ใบงานที่ 7, 8, 9 (วัสดุและเครื่องมือช่าง)
+      'ws7_p1_wood': 'ใบงาน 7 ตอนที่ 1: ตัวอย่างวัสดุไม้', 'ws7_p1_plastic': 'ใบงาน 7 ตอนที่ 1: ตัวอย่างพลาสติก', 'ws7_p1_metal': 'ใบงาน 7 ตอนที่ 1: ตัวอย่างโลหะ',
+      'ws8_p1_mat1': 'ใบงาน 8 ตอนที่ 1: การเลือกวัสดุ', 'ws8_p7_summary': 'ใบงาน 8 ตอนที่ 7: สรุปหลักการเลือกวัสดุ',
+      'ws9_p1_tool1': 'ใบงาน 9 ตอนที่ 1: เครื่องมือช่างชิ้นที่ 1', 'ws9_p8_summary': 'ใบงาน 9 ตอนที่ 8: สรุปความปลอดภัย',
+
+      // ใบงานที่ 10, 11, 12 (กลไก ไฟฟ้า อิเล็กทรอนิกส์)
+      'ws10_p1_def': 'ใบงาน 10 ตอนที่ 1: หลักการล้อและเพลา', 'ws10_p7_summary': 'ใบงาน 10 ตอนที่ 7: สรุปการผ่อนแรง',
+      'ws11_p1_led': 'ใบงาน 11 ตอนที่ 1: หน้าที่ LED', 'ws11_p3_match1': 'ใบงาน 11 ตอนที่ 3: จับคู่อุปกรณ์ไฟฟ้า',
+      'ws12_p1_open_close': 'ใบงาน 12 ตอนที่ 1: วงจรเปิดหรือปิด', 'ws12_p10_summary': 'ใบงาน 12 ตอนที่ 10: สรุปผลการทดลองวงจร',
+
+      // ใบงานที่ 13 (นักสืบปัญหา ตามหาข้อมูล)
+      'ws13_p1_q1': 'ตอนที่ 1 ข้อ 1: ปัญหาที่พบคืออะไร', 'ws13_p1_q2': 'ตอนที่ 1 ข้อ 2: ใครได้รับผลกระทบ',
+      'ws13_p1_q3': 'ตอนที่ 1 ข้อ 3: ปัญหาเกิดขึ้นที่ไหน', 'ws13_p1_q4': 'ตอนที่ 1 ข้อ 4: เกิดขึ้นเมื่อใด',
+      'ws13_p1_q5': 'ตอนที่ 1 ข้อ 5: ผลกระทบที่อาจเกิดขึ้น',
+      'ws13_p2_what': 'ตอนที่ 2 (5W1H): อะไรคือปัญหา', 'ws13_p2_who': 'ตอนที่ 2 (5W1H): ใครได้รับผลกระทบ',
+      'ws13_p2_where': 'ตอนที่ 2 (5W1H): เกิดที่ไหน', 'ws13_p2_when': 'ตอนที่ 2 (5W1H): เกิดเมื่อใด',
+      'ws13_p2_why': 'ตอนที่ 2 (5W1H): เหตุใดจึงเป็นปัญหา', 'ws13_p2_limit': 'ตอนที่ 2 (5W1H): มีข้อจำกัดอะไร',
+      'ws13_p3_items': 'ตอนที่ 3: ข้อมูลที่จำเป็นต้องรู้ (Checklist)', 'ws13_p3_more': 'ตอนที่ 3: ข้อมูลอื่นที่ควรรู้เพิ่ม',
+      'ws13_p4_src1': 'ตอนที่ 4: แหล่งข้อมูลสภาพพื้นที่', 'ws13_p4_src2': 'ตอนที่ 4: แหล่งข้อมูลความต้องการผู้ใช้',
+      'ws13_p5_problem': 'ตอนที่ 5: ปัญหาที่กลุ่มเลือก', 'ws13_p5_user': 'ตอนที่ 5: ผู้ได้รับผลกระทบ',
+      'ws13_p6_info1': 'ตอนที่ 6: ข้อมูลจำเป็นข้อที่ 1', 'ws13_p6_info2': 'ตอนที่ 6: ข้อมูลจำเป็นข้อที่ 2',
+      'ws13_p7_key1': 'ตอนที่ 7: ข้อมูลสำคัญข้อที่ 1', 'ws13_p9_title': 'ตอนที่ 9: ชื่อปัญหาในแฟ้มคดี',
+      'ws13_p10_q1': 'ตอนที่ 10 ข้อ 1: สรุปก่อนออกแบบควรทำอะไร', 'ws13_p10_q2': 'ตอนที่ 10 ข้อ 2: ประโยชน์ของการรวบรวมข้อมูล',
+
+            // ใบงานที่ 14 (คิดหลายทาง วางแผนให้ชัด)
+      'ws14_p1_problem': 'ตอนที่ 1: ปัญหาหรือความต้องการของกลุ่ม', 'ws14_p1_user': 'ตอนที่ 1: ผู้ที่ได้รับผลกระทบ',
+      'ws14_p1_info1': 'ตอนที่ 1: ข้อมูลสำคัญข้อที่ 1', 'ws14_p1_info2': 'ตอนที่ 1: ข้อมูลสำคัญข้อที่ 2',
+      'ws14_p1_info3': 'ตอนที่ 1: ข้อมูลสำคัญข้อที่ 3', 'ws14_p1_limit': 'ตอนที่ 1: ข้อจำกัดของปัญหา',
+      'ws14_p2_name1': 'ตอนที่ 2 แนวทาง 1: ชื่อแนวทาง', 'ws14_p2_idea1': 'ตอนที่ 2 แนวทาง 1: อธิบายแนวคิด',
+      'ws14_p2_mat1': 'ตอนที่ 2 แนวทาง 1: วัสดุอุปกรณ์',
+      'ws14_p2_name2': 'ตอนที่ 2 แนวทาง 2: ชื่อแนวทาง', 'ws14_p2_idea2': 'ตอนที่ 2 แนวทาง 2: อธิบายแนวคิด',
+      'ws14_p2_mat2': 'ตอนที่ 2 แนวทาง 2: วัสดุอุปกรณ์',
+      'ws14_p2_name3': 'ตอนที่ 2 แนวทาง 3: ชื่อแนวทาง', 'ws14_p2_idea3': 'ตอนที่ 2 แนวทาง 3: อธิบายแนวคิด',
+      'ws14_p2_mat3': 'ตอนที่ 2 แนวทาง 3: วัสดุอุปกรณ์',
+      'ws14_p3_selected': 'ตอนที่ 3: แนวทางที่กลุ่มเลือก', 'ws14_p3_reason': 'ตอนที่ 3: เหตุผลที่เลือก',
+      'ws14_p4_product_name': 'ตอนที่ 4: ชื่อชิ้นงาน/แนวทาง', 'ws14_p4_sketch_desc': 'ตอนที่ 4: คำอธิบายภาพร่างและกายภาพ',
+      'ws14_p4_comp1': 'ตอนที่ 4: ส่วนประกอบสำคัญที่ 1', 'ws14_p4_comp2': 'ตอนที่ 4: ส่วนประกอบสำคัญที่ 2',
+      'ws14_p4_comp3': 'ตอนที่ 4: ส่วนประกอบสำคัญที่ 3', 'ws14_p4_comp4': 'ตอนที่ 4: ส่วนประกอบสำคัญที่ 4',
+      'ws14_p5_item_0': 'ตอนที่ 5: รายการวัสดุ/อุปกรณ์ชิ้นที่ 1',
+      'ws14_p6_task_1': 'ตอนที่ 6 ขั้นตอน 1: สิ่งที่ต้องทำ', 'ws14_p6_resp_1': 'ตอนที่ 6 ขั้นตอน 1: ผู้รับผิดชอบ',
+      'ws14_p7_chk': 'ตอนที่ 7: เช็กแบบก่อนสร้าง (Checklist)', 'ws14_p7_improve': 'ตอนที่ 7: สิ่งที่ควรปรับปรุงก่อนสร้าง',
+      'ws14_p8_plan1': 'ตอนที่ 8 ข้อ 1: ถ้าวัสดุไม่มี', 'ws14_p8_plan2': 'ตอนที่ 8 ข้อ 2: ถ้าอุปกรณ์ไม่เหมาะกับงาน',
+      'ws14_p8_plan3': 'ตอนที่ 8 ข้อ 3: ถ้าสมาชิกทำงานไม่ทันแผน',
+      'ws14_p9_prob': 'ตอนที่ 9: ปัญหาที่ต้องการแก้', 'ws14_p9_way': 'ตอนที่ 9: แนวทางที่เลือก',
+      'ws14_p9_reason': 'ตอนที่ 9: เหตุผลที่เลือก', 'ws14_p9_focus': 'ตอนที่ 9: สิ่งสำคัญที่สุดที่ต้องคำนึงถึง',
+      'ws14_p10_q1': 'ตอนที่ 10 ข้อ 1: ก่อนเลือกแนวทางควรทำอะไร', 'ws14_p10_q2': 'ตอนที่ 10 ข้อ 2: ประโยชน์ของการคิดหลายแบบ',
+      'ws14_p10_q3': 'ตอนที่ 10 ข้อ 3: ประโยชน์ของภาพร่าง', 'ws14_p10_q4': 'ตอนที่ 10 ข้อ 4: ประโยชน์ของการวางแผน',
+      'ws14_p10_q5': 'ตอนที่ 10 ข้อ 5: ขั้นตอนต่อไปหลังวางแผน',
+
+      // ใบงานที่ 15 (ลองใช้ ตรวจดู ปรับปรุง)
+      'ws15_p1_name': 'ตอนที่ 1: ชื่อชิ้นงาน/แนวทางแก้ปัญหา', 'ws15_p1_problem': 'ตอนที่ 1: ปัญหาที่ต้องการแก้',
+      'ws15_p1_work': 'ตอนที่ 1: หลักการทำงานของชิ้นงาน', 'ws15_p2_crit': 'ตอนที่ 2: เกณฑ์ที่ใช้ประเมิน (Checklist)',
+      'ws15_p3_overall': 'ตอนที่ 3: ผลการทดสอบโดยรวม', 'ws15_p4_defect1': 'ตอนที่ 4: ข้อบกพร่องที่ 1',
+      'ws15_p4_cause1': 'ตอนที่ 4: สาเหตุข้อบกพร่องที่ 1', 'ws15_p5_def_1': 'ตอนที่ 5: แนวทางปรับปรุงแก้ไข',
+      'ws15_p6_item1': 'ตอนที่ 6: สิ่งที่กลุ่มปรับปรุง', 'ws15_p7_rating': 'ตอนที่ 7: ผลประเมินหลังปรับปรุง',
+      'ws15_p8_good': 'ตอนที่ 8: สิ่งที่เพื่อนชมว่าทำได้ดี', 'ws15_p8_suggest': 'ตอนที่ 8: สิ่งที่เพื่อนเสนอแนะ',
+      'ws15_p9_item1': 'ตอนที่ 9: นำเสนอประเด็นปัญหา', 'ws15_p10_good': 'ตอนที่ 10: สิ่งที่กลุ่มทำได้ดีที่สุด',
+
+      // ใบงานที่ 16 (มองให้ชัด จับปัญหาให้ตรง)
+      'ws16_p1_q1': 'ตอนที่ 1 ข้อ 1: สิ่งที่เกิดขึ้นในสถานการณ์', 'ws16_p1_q2': 'ตอนที่ 1 ข้อ 2: ปัญหาหลักคืออะไร',
+      'ws16_p2_what': 'ตอนที่ 2 (5W1H): อะไรคือปัญหา', 'ws16_p2_why': 'ตอนที่ 2 (5W1H): เหตุใดจึงเป็นปัญหา',
+      'ws16_p3_cause1': 'ตอนที่ 3: สาเหตุที่ 1', 'ws16_p3_top_cause': 'ตอนที่ 3: สาเหตุที่สำคัญที่สุด',
+      'ws16_p4_impact': 'ตอนที่ 4: ผลกระทบที่เกี่ยวข้อง (Checklist)', 'ws16_p5_problem': 'ตอนที่ 5: ปัญหาที่กลุ่มเลือก',
+      'ws16_p6_limit': 'ตอนที่ 6: ข้อจำกัดที่เกี่ยวข้อง (Checklist)', 'ws16_p9_problem': 'ตอนที่ 9: ปัญหาของกลุ่มเรา',
+      'ws16_p9_purpose': 'ตอนที่ 9: เราต้องการแก้นี้เพื่ออะไร', 'ws16_p9_limit': 'ตอนที่ 9: ข้อจำกัดสำคัญ',
+      'ws16_p10_chk': 'ตอนที่ 10: เช็กลิสต์ก่อนออกแบบ', 'ws16_p11_q1': 'ตอนที่ 11: สรุปความรู้ข้อที่ 1',
+
+      // ใบงานที่ 17 (คิดแบบ วางแผน พร้อมสร้าง)
+      'ws17_p1_problem': 'ตอนที่ 1: ปัญหาของกลุ่ม', 'ws17_p2_name1': 'ตอนที่ 2: แนวทางแก้ปัญหาที่ 1',
+      'ws17_p2_name2': 'ตอนที่ 2: แนวทางแก้ปัญหาที่ 2', 'ws17_p2_name3': 'ตอนที่ 2: แนวทางแก้ปัญหาที่ 3',
+      'ws17_p3_selected': 'ตอนที่ 3: แนวทางที่กลุ่มเลือก', 'ws17_p3_reason': 'ตอนที่ 3: เหตุผลที่ตัดสินใจเลือก',
+      'ws17_p4_product_name': 'ตอนที่ 4: ชื่อชิ้นงานที่ออกแบบ', 'ws17_p4_sketch_desc': 'ตอนที่ 4: คำอธิบายภาพร่าง/กายภาพ',
+      'ws17_p4_comp1': 'ตอนที่ 4: ส่วนประกอบสำคัญที่ 1', 'ws17_p5_mechanism': 'ตอนที่ 5: หลักการทำงานของชิ้นงาน',
+      'ws17_p6_item_0': 'ตอนที่ 6: รายการวัสดุ/อุปกรณ์ชิ้นที่ 1', 'ws17_p7_mat_reason': 'ตอนที่ 7: เหตุผลที่เลือกใช้วัสดุหลัก',
+      'ws17_p8_task_1': 'ตอนที่ 8 ขั้นตอน 1: สิ่งที่ต้องทำ', 'ws17_p8_resp_1': 'ตอนที่ 8 ขั้นตอน 1: ผู้รับผิดชอบ',
+      'ws17_p9_member_1': 'ตอนที่ 9: สมาชิกและหน้าที่คนที่ 1', 'ws17_p10_chk': 'ตอนที่ 10: เช็กแบบก่อนสร้าง (Checklist)',
+      'ws17_p11_plan1': 'ตอนที่ 11: แผนสำรองกรณีวัสดุไม่มี', 'ws17_p12_prod': 'ตอนที่ 12: ชิ้นงานที่วางแผนสร้าง',
+      'ws17_p13_q1': 'ตอนที่ 13: สรุปก่อนสร้างควรทำอะไร',
+
+      // ใบงานที่ 18 (สร้างจริง ทดสอบจริง พัฒนาให้ดี)
+      'ws18_p1_prod': 'ตอนที่ 1: ชื่อชิ้นงานที่สร้างจริง', 'ws18_p1_prob': 'ตอนที่ 1: ปัญหาที่ต้องการแก้',
+      'ws18_p1_duty': 'ตอนที่ 1: ชิ้นงานนี้ทำหน้าที่อะไร', 'ws18_p2_chk': 'ตอนที่ 2: ตรวจความพร้อมก่อนทำ (Checklist)',
+      'ws18_p3_task_1': 'ตอนที่ 3 ขั้นตอน 1: สิ่งที่ปฏิบัติจริง', 'ws18_p3_unplanned': 'ตอนที่ 3: สิ่งที่ไม่เป็นไปตามแผน',
+      'ws18_p4_crit': 'ตอนที่ 4: เกณฑ์ทดสอบ (Checklist)', 'ws18_p5_overall': 'ตอนที่ 5: ผลทดสอบโดยรวม',
+      'ws18_p6_def1': 'ตอนที่ 6: ข้อบกพร่องที่ 1', 'ws18_p6_cau1': 'ตอนที่ 6: สาเหตุข้อบกพร่องที่ 1',
+      'ws18_p7_def_1': 'ตอนที่ 7: แผนการปรับปรุงชิ้นงาน', 'ws18_p8_rating': 'ตอนที่ 8: ผลประเมินหลังปรับปรุง',
+      'ws18_p9_like': 'ตอนที่ 9: สิ่งที่เพื่อนชอบ', 'ws18_p10_q3': 'ตอนที่ 10: สรุปชิ้นงานนำเสนอ',
+      'ws18_p11_step2': 'ตอนที่ 11: ขั้นตอนที่ 2 EDP', 'ws18_p11_step4': 'ตอนที่ 11: ขั้นตอนที่ 4 EDP',
+      'ws18_p11_step6': 'ตอนที่ 11: ขั้นตอนที่ 6 EDP', 'ws18_p12_best': 'ตอนที่ 12: สิ่งที่กลุ่มทำได้ดีที่สุด',
+      'ws18_p13_chk': 'ตอนที่ 13: เช็กลิสต์จบโครงงาน'
+    };
+
+    // ฟังก์ชันสร้างป้ายชื่อคำถามภาษาไทยอัตโนมัติ (Smart Label Generator)
+    function getSmartQuestionLabel(wsId, key) {
+      if (QUESTION_LABELS[key]) return QUESTION_LABELS[key];
+
+      // แปลงชื่อคีย์อัตโนมัติ เช่น ws13_p4_src1 -> ใบงาน 13 ตอนที่ 4 (src1)
+      const pMatch = key.match(/^ws\d+_p(\d+)_(.+)$/);
+      if (pMatch) {
+        const partNum = pMatch[1];
+        const subKey = pMatch[2];
+        const subNames = {
+          'title': 'ชื่อเรื่อง/หัวข้อ', 'problem': 'โจทย์ปัญหา', 'desc': 'คำอธิบาย',
+          'user': 'กลุ่มผู้ใช้/เป้าหมาย', 'location': 'สถานที่', 'limit': 'ข้อจำกัด',
+          'cause': 'สาเหตุ', 'impact': 'ผลกระทบ', 'reason': 'เหตุผลประกอบ',
+          'summary': 'บทสรุป', 'task': 'กิจกรรม/งาน', 'resp': 'ผู้รับผิดชอบ',
+          'mat': 'วัสดุที่ใช้', 'tool': 'เครื่องมือ', 'crit': 'เกณฑ์ประเมิน',
+          'rating': 'ผลการประเมิน', 'defect': 'ข้อบกพร่อง', 'fix': 'แนวทางแก้ไข'
+        };
+        const prettySub = subNames[subKey.split('_')[0]] || subKey;
+        return `ตอนที่ ${partNum}: ${prettySub} (${subKey})`;
+      }
+
+      return `รายการคำตอบ: ${key}`;
+    }
+
+    // ฟังก์ชันจัดรูปแบบและล้างอักขระพิเศษของคำตอบนักเรียนอย่างปลอดภัย (Safe Formatting & XSS Sanitization)
+    function escapeHtml(str) {
+      if (str === undefined || str === null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatStudentAnswerValue(val) {
+      if (val === undefined || val === null || val === '') {
+        return '<span class="text-slate-400 italic font-normal">(เว้นว่าง / ไม่ได้ตอบ)</span>';
+      }
+      if (Array.isArray(val)) {
+        if (val.length === 0) return '<span class="text-slate-400 italic font-normal">(ไม่ได้เลือก)</span>';
+        return val.map(v => `<span class="inline-block bg-slate-100 text-slate-800 text-[11px] px-2 py-0.5 rounded-md border border-slate-200 mr-1 mb-1 font-normal">${escapeHtml(v)}</span>`).join('');
+      }
+      if (typeof val === 'boolean') {
+        return val ? 'จริง / เลือก' : 'เท็จ / ไม่เลือก';
+      }
+      const strVal = String(val).trim();
+      // รองรับและตรวจสอบภาพสเก็ตช์/วงจร (Strict Base64 Image URI) อย่างรัดกุม ป้องกัน XSS
+      if (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(strVal)) {
+        return `
+          <div class="mt-1">
+            <a href="${strVal}" target="_blank" rel="noopener noreferrer" class="inline-block" title="คลิกเพื่อเปิดดูภาพขนาดเต็ม">
+              <img src="${strVal}" class="max-h-56 max-w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-xs hover:opacity-90 transition" alt="ภาพสเก็ตช์/วงจรของนักเรียน" />
+            </a>
+            <span class="block text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>คลิกที่ภาพเพื่อเปิดดูขนาดเต็มในแท็บใหม่</span>
+          </div>
+        `;
+      }
+      return `<span class="break-words font-medium">${escapeHtml(strVal)}</span>`;
+    }
+
+    function checkMeaningfulText(text, requiredKeywords) {
+      if (!text || typeof text !== 'string') return false;
+      const clean = text.trim().toLowerCase();
+      if (clean.length < 3) return false;
+      if (/^([a-zA-Z0-9ก-๙])\1{2,}$/.test(clean)) return false;
+      if (/^[\s\.\,\-\_\/\*\+\=\?\!\@\#\$\%\^\&\(\)]+$/.test(clean)) return false;
+      const garbage = ['asdf', 'qwer', 'zxcv', '555', 'มั่ว', 'ไม่รู้', 'อิอิ', 'งง', 'ไม่อยากทำ', 'ขี้เกียจ', 'test', 'ทดสอบ'];
+      if (garbage.some(g => clean === g || clean.includes(g))) return false;
+      if (requiredKeywords && requiredKeywords.length > 0) {
+        return requiredKeywords.some(kw => clean.includes(kw.toLowerCase()));
+      }
+      return clean.length >= 6;
+    }
+
+    function evaluateQuestionItem(wsId, key, val, allAnswers) {
+      const v = (val !== undefined && val !== null) ? String(val).trim() : '';
+      const wId = parseInt(wsId || 1);
+
+      // ใบงานที่ 1
+      if (wId === 1) {
+        const correctItems = {
+          ws1_item1: { cor: 'tech', label: 'เป็นเทคโนโลยี', reasonKw: ['สร้าง', 'ทำ', 'ผ่อนแรง', 'ช่วย', 'เดิน', 'เดินทาง', 'ประดิษฐ์', 'ตัด', 'เขียน', 'กรอง', 'สื่อสาร', 'มนุษย์'] },
+          ws1_item2: { cor: 'nature', label: 'ไม่เป็นเทคโนโลยี (ธรรมชาติ)', reasonKw: ['ธรรมชาติ', 'เกิดขึ้นเอง', 'ไม่ได้สร้าง', 'สิ่งแวดล้อม', 'วัฏจักร'] },
+          ws1_item3: { cor: 'tech', label: 'เป็นเทคโนโลยี', reasonKw: ['สร้าง', 'ทำ', 'ผ่อนแรง', 'ช่วย', 'เดิน', 'เดินทาง', 'ประดิษฐ์', 'ตัด', 'เขียน', 'กรอง', 'สื่อสาร', 'มนุษย์'] },
+          ws1_item4: { cor: 'nature', label: 'ไม่เป็นเทคโนโลยี (ธรรมชาติ)', reasonKw: ['ธรรมชาติ', 'เกิดขึ้นเอง', 'ไม่ได้สร้าง', 'สิ่งแวดล้อม', 'วัฏจักร'] },
+          ws1_item5: { cor: 'tech', label: 'เป็นเทคโนโลยี', reasonKw: ['สร้าง', 'ทำ', 'ผ่อนแรง', 'ช่วย', 'เดิน', 'เดินทาง', 'ประดิษฐ์', 'ตัด', 'เขียน', 'กรอง', 'สื่อสาร', 'มนุษย์'] },
+          ws1_item6: { cor: 'tech', label: 'เป็นเทคโนโลยี', reasonKw: ['สร้าง', 'ทำ', 'ผ่อนแรง', 'ช่วย', 'เดิน', 'เดินทาง', 'ประดิษฐ์', 'ตัด', 'เขียน', 'กรอง', 'สื่อสาร', 'มนุษย์'] },
+          ws1_item7: { cor: 'tech', label: 'เป็นเทคโนโลยี', reasonKw: ['สร้าง', 'ทำ', 'ผ่อนแรง', 'ช่วย', 'เดิน', 'เดินทาง', 'ประดิษฐ์', 'ตัด', 'เขียน', 'กรอง', 'สื่อสาร', 'มนุษย์'] },
+          ws1_item8: { cor: 'nature', label: 'ไม่เป็นเทคโนโลยี (ธรรมชาติ)', reasonKw: ['ธรรมชาติ', 'เกิดขึ้นเอง', 'ไม่ได้สร้าง', 'สิ่งแวดล้อม', 'วัฏจักร'] }
+        };
+
+        if (correctItems[key]) {
+          const item = correctItems[key];
+          const isCor = v === item.cor;
+          return {
+            isCorrect: isCor,
+            scoreText: '0.5 คะแนน',
+            hint: isCor ? `ถูกต้อง: ข้อนี้${item.label}` : `เฉลยที่ถูกต้องคือ: ${item.label}`
+          };
+        }
+
+        if (key.endsWith('_reason')) {
+          const baseKey = key.replace('_reason', '');
+          const baseItem = correctItems[baseKey];
+          if (baseItem) {
+            const isCor = checkMeaningfulText(v, baseItem.reasonKw);
+            return {
+              isCorrect: isCor,
+              scoreText: '0.2 คะแนน',
+              hint: isCor ? 'ถูกต้อง: ให้เหตุผลได้สอดคล้องตามหลักการ' : 'ต้องระบุเหตุผลที่มีสาระ เช่น มนุษย์สร้างขึ้นเพื่อผ่อนแรง หรือ เกิดขึ้นเองตามธรรมชาติ'
+            };
+          }
+        }
+
+        if (key === 'ws1_p3_q1_sel') {
+          const isCor = v === 'not_always';
+          return { isCorrect: isCor, scoreText: '0.7 คะแนน', hint: isCor ? 'ถูกต้อง: เทคโนโลยีไม่จำเป็นต้องใช้ไฟฟ้าเสมอไป' : 'เฉลย: ไม่จำเป็นต้องเป็นเครื่องใช้ไฟฟ้าเสมอไป (เช่น กรรไกร, ดินสอ ก็เป็นเทคโนโลยี)' };
+        }
+        if (key === 'ws1_p3_q1_text') {
+          const isCor = checkMeaningfulText(v, ['ไม่จำเป็น', 'ธรรมดา', 'สร้าง', 'แก้ปัญหา', 'ชิ้นงาน', 'วิธีการ', 'กรรไกร', 'ดินสอ', 'เครื่องมือ', 'ไฟฟ้า']);
+          return { isCorrect: isCor, scoreText: '0.7 คะแนน', hint: isCor ? 'ถูกต้อง: อธิบายเหตุผลและยกตัวอย่างประกอบได้ชัดเจน' : 'ควรยกตัวอย่างเทคโนโลยีที่ไม่ใช้ไฟฟ้า เช่น กรรไกร ปากกา เพื่อแก้ปัญหา' };
+        }
+        if (key === 'ws1_p3_q2_sel') {
+          const isCor = v === 'yes';
+          return { isCorrect: isCor, scoreText: '0.7 คะแนน', hint: isCor ? 'ถูกต้อง: ดินสอจัดเป็นเทคโนโลยี' : 'เฉลย: ใช่ ดินสอเป็นเทคโนโลยี' };
+        }
+        if (key === 'ws1_p3_q2_text') {
+          const isCor = checkMeaningfulText(v, ['สร้าง', 'ประดิษฐ์', 'เขียน', 'จด', 'บันทึก', 'แกรไฟต์', 'ไม้', 'เครื่องมือ']);
+          return { isCorrect: isCor, scoreText: '0.7 คะแนน', hint: isCor ? 'ถูกต้อง: มีเหตุผลสนับสนุนตรงจุด' : 'ควรระบุว่า มนุษย์สร้างขึ้นเพื่อบันทึกข้อความและแก้ปัญหา' };
+        }
+        if (key === 'ws1_p3_q3_ex') {
+          const isCor = checkMeaningfulText(v, ['วิธี', 'ระบบ', 'ขั้นตอน', 'การ', 'หมัก', 'บำบัด', 'ปลูก', 'รีไซเคิล', 'คิว', 'ถนอมอาหาร']);
+          return { isCorrect: isCor, scoreText: '0.6 คะแนน', hint: isCor ? 'ถูกต้อง: ยกตัวอย่างเทคโนโลยีที่เป็นวิธีการได้ถูกต้อง' : 'ควรยกตัวอย่างเทคโนโลยีที่เป็น "วิธีการ" เช่น การทำปุ๋ยหมัก ระบบบำบัดน้ำเสีย' };
+        }
+        if (key === 'ws1_p4_def') {
+          const isCor = checkMeaningfulText(v, ['สร้าง', 'พัฒนา', 'ชิ้นงาน', 'วิธีการ', 'แก้ปัญหา', 'ต้องการ', 'ความสามารถ']);
+          return { isCorrect: isCor, scoreText: '0.5 คะแนน', hint: isCor ? 'ถูกต้อง: สรุปนิยามเทคโนโลยีได้ครบถ้วน' : 'ควรมีคำสำคัญ: สิ่งที่มนุษย์สร้างหรือพัฒนาขึ้นเพื่อแก้ปัญหา' };
+        }
+        if (key === 'ws1_p4_purp') {
+          const isCor = checkMeaningfulText(v, ['แก้ปัญหา', 'สะดวก', 'ต้องการ', 'ทำงาน', 'ชีวิต', 'ผ่อนแรง', 'ประสิทธิภาพ']);
+          return { isCorrect: isCor, scoreText: '0.5 คะแนน', hint: isCor ? 'ถูกต้อง: ระบุประโยชน์และจุดประสงค์ได้ชัดเจน' : 'ควรระบุว่า เพื่อตอบสนองความต้องการและอำนวยความสะดวก' };
+        }
+      }
+
+      // ใบงานที่ 2
+      if (wId === 2) {
+        const matches = { ws2_p4_1: 'จ', ws2_p4_2: 'ค', ws2_p4_3: 'ข', ws2_p4_4: 'ง', ws2_p4_5: 'ก' };
+        if (matches[key]) {
+          const isCor = v === matches[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: จับคู่ตรงกับ ${matches[key]}` : `เฉลยที่ถูกต้องคือ: ${matches[key]}` };
+        }
+        if (key === 'ws2_p3_q1') {
+          const isCor = checkMeaningfulText(v, ['รถเกี่ยว', 'เกี่ยวนวด', 'เกี่ยวข้าว', 'เครื่องจักร']);
+          return { isCorrect: isCor, scoreText: '0.75 คะแนน', hint: isCor ? 'ถูกต้อง: ระบุเทคโนโลยีรถเกี่ยวนวดข้าว' : 'ควรระบุ: รถเกี่ยวนวดข้าว' };
+        }
+        if (key === 'ws2_p3_q2') {
+          const isCor = checkMeaningfulText(v, ['แรงงาน', 'คน', 'เวลา', 'ช้า', 'เหนื่อย', 'ต้นทุน']);
+          return { isCorrect: isCor, scoreText: '0.75 คะแนน', hint: isCor ? 'ถูกต้อง: ระบุปัญหาการขาดแคลนแรงงานและเวลา' : 'ควรระบุ: ปัญหาขาดแรงงานคน หรือเก็บเกี่ยวไม่ทันเวลา' };
+        }
+        if (key === 'ws2_p5_summary') {
+          const isCor = checkMeaningfulText(v, ['ประสิทธิภาพ', 'ช่วย', 'อาชีพ', 'สะดวก', 'รวดเร็ว', 'ลดแรง', 'ต้นทุน', 'ผลผลิต']);
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? 'ถูกต้อง: สรุปคุณค่าของเทคโนโลยีในอาชีพได้ดี' : 'ควรระบุว่า ช่วยเพิ่มประสิทธิภาพและลดภาระแรงงาน' };
+        }
+      }
+
+      // ใบงานที่ 4
+      if (wId === 4) {
+        const factors = { ws4_p1_1: 'ข', ws4_p1_2: 'ค', ws4_p1_3: 'ง', ws4_p1_4: 'ก', ws4_p1_5: 'จ' };
+        if (factors[key]) {
+          const isCor = v === factors[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: จับคู่ตรงกับ ${factors[key]}` : `เฉลยที่ถูกต้องคือ: ${factors[key]}` };
+        }
+      }
+
+      // ใบงานที่ 5, 6
+      if (wId === 5 || wId === 6) {
+        const sysTerms = { ws5_p1_1: 'Input', ws5_p1_2: 'Process', ws5_p1_3: 'Output', ws5_p1_4: 'Feedback', ws6_p1_1: 'Input', ws6_p1_2: 'Process', ws6_p1_3: 'Output', ws6_p1_4: 'Feedback' };
+        if (sysTerms[key]) {
+          const isCor = v.toLowerCase() === sysTerms[key].toLowerCase();
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: คือส่วน ${sysTerms[key]}` : `เฉลยที่ถูกต้องคือ: ${sysTerms[key]}` };
+        }
+      }
+
+      // ใบงานที่ 7
+      if (wId === 7) {
+        const mats = { ws7_p1_1: 'โลหะ', ws7_p1_2: 'พลาสติก', ws7_p1_3: 'ไม้' };
+        if (mats[key]) {
+          const isCor = v === mats[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: คือ ${mats[key]}` : `เฉลยที่ถูกต้องคือ: ${mats[key]}` };
+        }
+      }
+
+      // ใบงานที่ 8
+      if (wId === 8) {
+        const bestMats = { ws8_p1_1: 'โลหะ', ws8_p1_2: 'พลาสติก', ws8_p1_3: 'พลาสติก', ws8_p1_4: 'ยาง', ws8_p1_5: 'ไม้' };
+        if (bestMats[key]) {
+          const isCor = v === bestMats[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: วัสดุที่เหมาะคือ ${bestMats[key]}` : `เฉลยที่ถูกต้องคือ: ${bestMats[key]}` };
+        }
+        if (key === 'ws8_p3_s1_fit') {
+          const isCor = v === 'not_fit';
+          return { isCorrect: isCor, scoreText: '1.5 คะแนน', hint: isCor ? 'ถูกต้อง: ด้ามจับโลหะไม่เหมาะสม' : 'เฉลย: ไม่เหมาะสม' };
+        }
+        if (key === 'ws8_p3_s1_why') {
+          const isCor = checkMeaningfulText(v, ['ร้อน', 'นำความร้อน', 'จับไม่ได้', 'ลวก', 'พอง', 'ไหม้']);
+          return { isCorrect: isCor, scoreText: '1.5 คะแนน', hint: isCor ? 'ถูกต้อง: อธิบายเรื่องการนำความร้อนได้ดี' : 'ควรระบุว่า โลหะนำความร้อน ทำให้จับแล้วร้อนมือ' };
+        }
+      }
+
+      // ใบงานที่ 9
+      if (wId === 9) {
+        const tools = { ws9_p1_1: 'ไม้บรรทัด', ws9_p1_2: 'ตลับเมตร', ws9_p1_3: 'กรรไกร', ws9_p1_4: 'คัตเตอร์', ws9_p1_5: 'เลื่อย', ws9_p1_6: 'คีม', ws9_p1_7: 'ไขควง', ws9_p1_8: 'สว่าน' };
+        if (tools[key]) {
+          const isCor = v === tools[key];
+          return { isCorrect: isCor, scoreText: '0.5 คะแนน', hint: isCor ? `ถูกต้อง: คือ ${tools[key]}` : `เฉลยคือ: ${tools[key]}` };
+        }
+        const checks = { ws9_p4_1: 'correct', ws9_p4_2: 'wrong', ws9_p4_3: 'correct' };
+        if (checks[key]) {
+          const isCor = v === checks[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? 'ถูกต้อง' : `เฉลยคือ: ${checks[key] === 'correct' ? 'ถูกต้อง' : 'ไม่ถูกต้อง'}` };
+        }
+      }
+
+      // ใบงานที่ 10
+      if (wId === 10) {
+        const terms = { ws10_p1_1: 'ล้อ', ws10_p1_2: 'เพลา', ws10_p1_3: 'เดียวกัน', ws10_p1_4: 'ผ่อนแรง' };
+        if (terms[key]) {
+          const isCor = v === terms[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: ${terms[key]}` : `เฉลยคือ: ${terms[key]}` };
+        }
+      }
+
+      // ใบงานที่ 11
+      if (wId === 11) {
+        const elect = { ws11_p1_1: 'แบตเตอรี่', ws11_p1_2: 'สวิตช์', ws11_p1_3: 'ตัวต้านทาน', ws11_p1_4: 'LED', ws11_p1_5: 'บัซเซอร์', ws11_p1_6: 'มอเตอร์ไฟฟ้า' };
+        if (elect[key]) {
+          const isCor = v === elect[key];
+          return { isCorrect: isCor, scoreText: '0.75 คะแนน', hint: isCor ? `ถูกต้อง: ${elect[key]}` : `เฉลยคือ: ${elect[key]}` };
+        }
+        const matches = { ws11_p3_1: 'ค', ws11_p3_2: 'จ', ws11_p3_3: 'ฉ', ws11_p3_4: 'ข', ws11_p3_5: 'ก', ws11_p3_6: 'ง' };
+        if (matches[key]) {
+          const isCor = v === matches[key];
+          return { isCorrect: isCor, scoreText: '0.5 คะแนน', hint: isCor ? `ถูกต้อง: ข้อ ${matches[key]}` : `เฉลยคือ: ${matches[key]}` };
+        }
+        if (key === 'ws11_p5_1') {
+          const isCor = v === 'LED';
+          return { isCorrect: isCor, scoreText: '1.25 คะแนน', hint: isCor ? 'ถูกต้อง: อุปกรณ์คือ LED' : 'เฉลยคือ: LED' };
+        }
+      }
+
+      // ใบงานที่ 12
+      if (wId === 12) {
+        const circuits = { ws12_p2_1: 'closed', ws12_p2_2: 'open', ws12_p2_3: 'closed', ws12_p2_4: 'open', ws12_p2_5: 'closed' };
+        if (circuits[key]) {
+          const isCor = v === circuits[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? `ถูกต้อง: เป็น${circuits[key] === 'closed' ? 'วงจรปิด' : 'วงจรเปิด'}` : `เฉลยคือ: ${circuits[key] === 'closed' ? 'วงจรปิด' : 'วงจรเปิด'}` };
+        }
+        const resMap = { ws12_p3_res: 'light', ws12_p4_res: 'sound', ws12_p5_res: 'spin' };
+        if (resMap[key]) {
+          const isCor = v === resMap[key];
+          return { isCorrect: isCor, scoreText: '1.0 คะแนน', hint: isCor ? 'ถูกต้องตามผลการทดลอง' : 'เฉลยไม่ตรงตามผลการต่อวงจร' };
+        }
+      }
+
+      // ใบงานที่ 18
+      if (wId === 18) {
+        const steps = { ws18_s1: '1', ws18_s2: '2', ws18_s3: '3', ws18_s4: '4', ws18_s5: '5', ws18_s6: '6' };
+        if (steps[key]) {
+          const isCor = v === steps[key];
+          return { isCorrect: isCor, scoreText: '0.67 คะแนน', hint: isCor ? `ถูกต้อง: ขั้นตอนที่ ${steps[key]}` : `เฉลยคือ: ขั้นตอนที่ ${steps[key]}` };
+        }
+      }
+
+      // ตรวจสอบทั่วไป (ข้อความเขียนตอบ/ปลายเปิด)
+      const isMeaningful = checkMeaningfulText(v, []);
+      return {
+        isCorrect: isMeaningful,
+        scoreText: isMeaningful ? 'ผ่านเกณฑ์' : '0 คะแนน',
+        hint: isMeaningful ? 'ตอบได้สมบูรณ์และมีความหมาย' : (v.length < 3 ? 'คำตอบสั้นเกินไปหรือเว้นว่าง' : 'คำตอบไม่ตรงประเด็นหรือพิมพ์มั่ว')
+      };
+    }
+
+    function viewStudentAnswers(idx) {
+      const record = currentRenderedFilteredScores[idx] || scoresData[idx];
+      if (!record) {
+        alert('ไม่พบข้อมูลรายการนี้');
+        return;
+      }
+
+      currentViewingScoreRecord = record;
+
+      document.getElementById('ansModalStudentName').innerText = record.full_name || '-';
+      document.getElementById('ansModalStudentInfo').innerText = `${record.room || '-'} เลขที่ ${record.student_no || '-'}`;
+      document.getElementById('ansModalWsTitle').innerText = `ใบงานที่ ${record.worksheet_id || '-'}: ${record.worksheet_title || record.unit || ''}`;
+      document.getElementById('ansModalScore').innerText = `${record.score || 0} / ${record.max_score || 10} (${record.percentage || '-'})`;
+
+      // โหลดคะแนนและข้อเสนอแนะเดิมเข้าช่องปรับคะแนนของครู
+      const ovScoreInput = document.getElementById('teacherOverrideScore');
+      if (ovScoreInput) ovScoreInput.value = (record.score !== undefined ? record.score : 0);
+      const maxSpan = document.getElementById('overrideMaxScore');
+      if (maxSpan) maxSpan.innerText = record.max_score || 10;
+      const fbInput = document.getElementById('teacherFeedbackNote');
+      if (fbInput) fbInput.value = record.teacher_feedback || '';
+
+      const contentBox = document.getElementById('ansModalContent');
+      contentBox.innerHTML = '';
+
+      let answersObj = {};
+      try {
+        if (typeof record.answers === 'string') {
+          answersObj = JSON.parse(record.answers);
+        } else if (typeof record.answers === 'object' && record.answers !== null) {
+          answersObj = record.answers;
+        }
+      } catch (e) {
+        console.warn('Could not parse answers JSON:', e);
+      }
+
+      const keys = Object.keys(answersObj);
+      if (keys.length === 0) {
+        contentBox.innerHTML = `
+          <div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <i class="fa-regular fa-clipboard text-3xl mb-2 block text-slate-300"></i>
+            ยังไม่มีข้อมูลคำตอบที่บันทึกไว้สำหรับรายการนี้ (อาจส่งจากระบบรุ่นก่อนหน้า)
+          </div>
+        `;
+      } else {
+        let correctCount = 0;
+        let incorrectCount = 0;
+
+        keys.forEach((key, kIdx) => {
+          const val = answersObj[key];
+          const label = getSmartQuestionLabel(record.worksheet_id, key);
+          const ev = evaluateQuestionItem(record.worksheet_id, key, val, answersObj);
+
+          if (ev.isCorrect) correctCount++;
+          else incorrectCount++;
+
+          const div = document.createElement('div');
+          div.className = `p-3.5 ${ev.isCorrect ? 'bg-emerald-50/40 border-emerald-200 hover:bg-emerald-50/70' : 'bg-rose-50/40 border-rose-200 hover:bg-rose-50/70'} border rounded-2xl space-y-2 transition`;
+          
+          div.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center space-x-2">
+                <span class="w-5 h-5 rounded-full ${ev.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} flex items-center justify-center text-xs shrink-0 font-bold">
+                  <i class="fa-solid ${ev.isCorrect ? 'fa-check' : 'fa-xmark'}"></i>
+                </span>
+                <span class="font-bold text-slate-800 text-xs">${escapeHtml(label)}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ev.isCorrect ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'} flex items-center gap-1">
+                  <span>${ev.isCorrect ? 'ถูกต้อง' : 'ไม่ถูกต้อง / ปรับปรุง'}</span>
+                  <span class="font-mono text-[9px] opacity-80">(${escapeHtml(ev.scoreText)})</span>
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono bg-white px-2 py-0.5 rounded border border-slate-200">#${kIdx + 1}</span>
+              </div>
+            </div>
+            
+            <div class="text-xs pt-1.5 border-t ${ev.isCorrect ? 'border-emerald-200/60' : 'border-rose-200/60'} leading-relaxed flex flex-wrap items-center gap-1.5">
+              <span class="text-slate-500 text-[11px]">คำตอบของนักเรียน:</span>
+              <span class="font-medium ${ev.isCorrect ? 'text-slate-800' : 'text-rose-700 font-semibold'}">${formatStudentAnswerValue(val)}</span>
+            </div>
+
+            ${ev.hint ? `
+              <div class="text-[11px] ${ev.isCorrect ? 'bg-white/90 text-emerald-800 border-emerald-200' : 'bg-white/90 text-rose-800 border-rose-200'} p-2 rounded-xl border flex items-start gap-1.5 leading-relaxed">
+                <i class="fa-solid ${ev.isCorrect ? 'fa-circle-check text-emerald-600' : 'fa-circle-info text-rose-500'} mt-0.5 shrink-0"></i>
+                <span>${escapeHtml(ev.hint)}</span>
+              </div>
+            ` : ''}
+          `;
+          contentBox.appendChild(div);
+        });
+
+        // อัปเดตสถิติสรุป ถูก/ผิด บนหัว Modal
+        const elCor = document.getElementById('ansSummaryCorrectCount');
+        if (elCor) elCor.innerText = correctCount;
+        const elIncor = document.getElementById('ansSummaryIncorrectCount');
+        if (elIncor) elIncor.innerText = incorrectCount;
+        const elTot = document.getElementById('ansSummaryTotalCount');
+        if (elTot) elTot.innerText = keys.length;
+      }
+
+      const modal = document.getElementById('studentAnswersModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function saveTeacherOverrideScore() {
+      if (!currentViewingScoreRecord) return;
+      const scoreInput = document.getElementById('teacherOverrideScore');
+      const valStr = (scoreInput ? scoreInput.value : '').trim();
+      if (valStr === '' || isNaN(Number(valStr))) {
+        alert('⚠️ กรุณากรอกตัวเลขคะแนนที่ถูกต้อง');
+        return;
+      }
+      const maxSc = Number(currentViewingScoreRecord.max_score || 10);
+      let newScore = parseFloat(valStr);
+      if (newScore < 0) newScore = 0;
+      if (newScore > maxSc) newScore = maxSc;
+      newScore = Math.round(newScore * 10) / 10;
+
+      const feedback = (document.getElementById('teacherFeedbackNote') ? document.getElementById('teacherFeedbackNote').value : '').trim();
+
+      currentViewingScoreRecord.score = newScore;
+      currentViewingScoreRecord.percentage = Math.round((newScore / maxSc) * 100) + '%';
+      currentViewingScoreRecord.teacher_feedback = feedback;
+
+      // อัปเดตใน scoresData
+      const matchIdx = scoresData.findIndex(r => 
+        String(r.room) === String(currentViewingScoreRecord.room) && 
+        String(r.student_no) === String(currentViewingScoreRecord.student_no) && 
+        String(r.worksheet_id) === String(currentViewingScoreRecord.worksheet_id)
+      );
+      if (matchIdx >= 0) {
+        scoresData[matchIdx].score = newScore;
+        scoresData[matchIdx].percentage = currentViewingScoreRecord.percentage;
+        scoresData[matchIdx].teacher_feedback = feedback;
+      }
+
+      // บันทึกลงใน localStorage
+      try {
+        const sysLogs = JSON.parse(localStorage.getItem('agy_system_scores_log') || '[]');
+        const sIdx = sysLogs.findIndex(r => 
+          String(r.room) === String(currentViewingScoreRecord.room) && 
+          String(r.student_no) === String(currentViewingScoreRecord.student_no) && 
+          String(r.worksheet_id) === String(currentViewingScoreRecord.worksheet_id)
+        );
+        if (sIdx >= 0) {
+          sysLogs[sIdx].score = newScore;
+          sysLogs[sIdx].percentage = currentViewingScoreRecord.percentage;
+          sysLogs[sIdx].teacher_feedback = feedback;
+          localStorage.setItem('agy_system_scores_log', JSON.stringify(sysLogs));
+        }
+      } catch (e) {
+        console.warn('Could not sync override score to localStorage:', e);
+      }
+
+      // อัปเดตข้อความคะแนนใน Modal ทันที
+      document.getElementById('ansModalScore').innerText = `${newScore} / ${maxSc} (${currentViewingScoreRecord.percentage})`;
+
+      // เรนเดอร์ตารางคะแนนใหม่
+      renderScoresTable();
+      alert(`✅ บันทึกคะแนนที่ครูตรวจแก้เรียบร้อยแล้ว: ${newScore} / ${maxSc} คะแนน`);
+    }
+
+    function closeStudentAnswersModal() {
+      const modal = document.getElementById('studentAnswersModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+  </script>
+
+  <!-- ======================================================== -->
+  <!-- Modal แสดงรายละเอียดคำตอบของนักเรียนรายบุคคล -->
+  <!-- ======================================================== -->
+  <div id="studentAnswersModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="font-bold text-base text-slate-800 flex items-center space-x-2">
+          <i class="fa-solid fa-file-circle-check text-blue-600"></i>
+          <span>รายละเอียดคำตอบของนักเรียน</span>
+        </h3>
+        <button onclick="closeStudentAnswersModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- ข้อมูลสรุปนักเรียนและใบงาน -->
+      <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-body">
+        <div>
+          <span class="text-slate-400 block text-[11px]">ชื่อ - สกุล:</span>
+          <span id="ansModalStudentName" class="font-bold text-slate-800">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px]">ห้อง / เลขที่:</span>
+          <span id="ansModalStudentInfo" class="font-bold text-slate-700 font-mono">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px]">ใบงาน:</span>
+          <span id="ansModalWsTitle" class="font-bold text-blue-600">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px]">คะแนนที่ได้:</span>
+          <span id="ansModalScore" class="font-bold text-emerald-600 font-mono text-sm">-</span>
+        </div>
+      </div>
+
+      <!-- แถบสรุปผลการประเมิน ถูก/ผิด รายข้อ -->
+      <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-100/80 px-3.5 py-2.5 rounded-2xl mb-3 text-xs border border-slate-200/80">
+        <div class="flex items-center space-x-3">
+          <span class="text-slate-600 font-semibold">สรุปผลการตรวจ:</span>
+          <span class="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+            <i class="fa-solid fa-circle-check text-emerald-600"></i> ตอบถูก: <span id="ansSummaryCorrectCount" class="font-mono text-sm">0</span> ข้อ
+          </span>
+          <span class="text-rose-700 font-bold flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200">
+            <i class="fa-solid fa-circle-xmark text-rose-600"></i> ผิด/ปรับปรุง: <span id="ansSummaryIncorrectCount" class="font-mono text-sm">0</span> ข้อ
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-500 font-mono bg-white px-2.5 py-1 rounded-xl border border-slate-200">
+          ทั้งหมด <span id="ansSummaryTotalCount" class="font-bold text-slate-700">0</span> ข้อ
+        </div>
+      </div>
+
+      <!-- รายการคำตอบที่เลื่อนดูได้ -->
+      <div class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs font-body" id="ansModalContent">
+        <!-- ใส่รายการคำตอบที่นี่ -->
+      </div>
+
+      <!-- ส่วนสำหรับครูผู้สอน: ปรับคะแนนและให้ข้อเสนอแนะ -->
+      <div class="mt-3 pt-3 border-t border-slate-200 bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/80 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-amber-900 flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-pen text-amber-600"></i>
+            <span>ครูปรับแก้คะแนน / บันทึกข้อเสนอแนะ</span>
+          </span>
+          <span class="text-[10px] text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full font-medium">สิทธิ์ครูผู้สอน</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-600 mb-1">ปรับคะแนนใหม่ (เต็ม <span id="overrideMaxScore">10</span>):</label>
+            <input type="number" id="teacherOverrideScore" min="0" max="10" step="0.5" class="w-full bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-amber-400 outline-none">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-[11px] font-medium text-slate-600 mb-1">ข้อเสนอแนะ / หมายเหตุครู:</label>
+            <div class="flex gap-2">
+              <input type="text" id="teacherFeedbackNote" placeholder="เช่น ตอบได้ตรงประเด็นดีมาก, เพิ่มเติมเหตุผลอีกนิด" class="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 outline-none">
+              <button onclick="saveTeacherOverrideScore()" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl font-medium text-xs whitespace-nowrap transition shadow-sm hover:shadow flex items-center gap-1">
+                <i class="fa-solid fa-floppy-disk"></i><span>บันทึกคะแนน</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 mt-1 flex justify-end">
+        <button onclick="closeStudentAnswersModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
+
