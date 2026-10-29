@@ -714,6 +714,7 @@
             roomsData = res.rooms || [];
             scoresData = res.scores || [];
             studentsData = res.students || [];
+            localStorage.setItem('agy_system_rooms_status', JSON.stringify(roomsData));
             document.getElementById('serverClock').innerText = res.server_time_formatted || '-';
             syncStatus.innerText = 'ข้อมูลอัปเดตล่าสุด: ' + new Date().toLocaleTimeString('th-TH');
           } else {
@@ -745,12 +746,22 @@
     }
 
     function loadMockDemoData() {
-      roomsData = [];
-      for (let i = 1; i <= 12; i++) {
-        roomsData.push({
-          room: `ม.1/${i}`,
-          status: i === 1 ? 'OPEN' : (i === 12 ? 'CLOSED' : 'AUTO')
-        });
+      const savedRoomStatus = localStorage.getItem('agy_system_rooms_status');
+      if (savedRoomStatus) {
+        try {
+          roomsData = JSON.parse(savedRoomStatus);
+        } catch (e) {
+          roomsData = [];
+        }
+      }
+      if (!roomsData || roomsData.length === 0) {
+        roomsData = [];
+        for (let i = 1; i <= 12; i++) {
+          roomsData.push({
+            room: `ม.1/${i}`,
+            status: 'AUTO'
+          });
+        }
       }
       // โหลดประวัติการส่งงานจริงจาก Local Storage ของระบบ (ที่นักเรียนทำบนเครื่อง)
       let localLogs = [];
@@ -851,26 +862,34 @@
     async function setRoomStatus(room, newStatus) {
       if (!confirm(`ยืนยันการเปลี่ยนสถานะของ ${room} เป็น "${newStatus}"?`)) return;
 
-      // อัปเดตในเครื่องทันทีเพื่อให้ครูเห็นผลไว
+      // อัปเดตในเครื่องและบันทึกลง localStorage ทันทีเพื่อไม่ให้ค่าหายเวลารีเฟรช
       const target = roomsData.find(r => r.room === room);
       if (target) target.status = newStatus;
+      localStorage.setItem('agy_system_rooms_status', JSON.stringify(roomsData));
       renderRoomCards();
       updateStats();
 
       if (gasUrl) {
         try {
-          await fetch(gasUrl, {
+          const teacherToken = sessionStorage.getItem('teacher_secret_key') || 'thanin:krujamev8';
+          const resp = await fetch(gasUrl, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
               action: 'update_room_status',
               room: room,
-              status: newStatus
+              status: newStatus,
+              teacher_token: teacherToken
             })
           });
+          const res = await resp.json();
+          if (!res.success) {
+            console.warn('Backend update error:', res.error);
+            alert('⚠️ ไม่สามารถบันทึกสถานะห้องไปยัง Google Sheets ได้: ' + (res.error || ''));
+          }
         } catch (e) {
-          console.error(e);
+          console.error('Sync room status failed:', e);
         }
       }
     }
@@ -879,23 +898,31 @@
       if (!confirm(`ต้องการเปลี่ยนสถานะของ "ทุกห้อง (ม.1/1 - ม.1/12)" เป็น "${newStatus}" พร้อมกันหรือไม่?`)) return;
 
       roomsData.forEach(r => r.status = newStatus);
+      localStorage.setItem('agy_system_rooms_status', JSON.stringify(roomsData));
       renderRoomCards();
       updateStats();
 
       if (gasUrl) {
         try {
-          await fetch(gasUrl, {
+          const teacherToken = sessionStorage.getItem('teacher_secret_key') || 'thanin:krujamev8';
+          const resp = await fetch(gasUrl, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
               action: 'update_room_status',
               room: 'ALL',
-              status: newStatus
+              status: newStatus,
+              teacher_token: teacherToken
             })
           });
+          const res = await resp.json();
+          if (!res.success) {
+            console.warn('Backend update error:', res.error);
+            alert('⚠️ ไม่สามารถบันทึกสถานะห้องไปยัง Google Sheets ได้: ' + (res.error || ''));
+          }
         } catch (e) {
-          console.error(e);
+          console.error('Sync all rooms status failed:', e);
         }
       }
     }
@@ -1460,7 +1487,8 @@
               new_room: newRoom,
               new_student_no: newNo,
               full_name: fullName,
-              student_id: studentId
+              student_id: studentId,
+              teacher_token: sessionStorage.getItem('teacher_secret_key') || 'thanin:krujamev8'
             })
           });
           const res = await resp.json();
@@ -1535,7 +1563,8 @@
               action: 'reset_student_pin',
               room: room,
               student_no: studentNo,
-              new_pin: newPin.trim()
+              new_pin: newPin.trim(),
+              teacher_token: sessionStorage.getItem('teacher_secret_key') || 'thanin:krujamev8'
             })
           });
           const res = await resp.json();
