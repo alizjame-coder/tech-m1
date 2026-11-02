@@ -572,7 +572,8 @@
 
   <script>
     const STORAGE_KEY_GAS = 'agy_worksheet_gas_url';
-    let gasUrl = localStorage.getItem(STORAGE_KEY_GAS) || '';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyiI6hSEHHXGV9FZwqrVSwLFxcR6JBqIrQ1F4Ocz6pWRhKKTZtBIqniRC9ZbhmmU1AyZQ/exec';
+    let gasUrl = (localStorage.getItem(STORAGE_KEY_GAS) || '').trim() || DEFAULT_GAS_URL;
     
     // ข้อมูลหน่วยความจำ
     let roomsData = [];

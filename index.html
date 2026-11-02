@@ -578,8 +578,9 @@
     // ========================================================
     const STORAGE_KEY_GAS = 'agy_worksheet_gas_url';
     const STORAGE_KEY_STUDENT = 'agy_student_auth';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyiI6hSEHHXGV9FZwqrVSwLFxcR6JBqIrQ1F4Ocz6pWRhKKTZtBIqniRC9ZbhmmU1AyZQ/exec';
 
-    let gasWebAppUrl = localStorage.getItem(STORAGE_KEY_GAS) || '';
+    let gasWebAppUrl = (localStorage.getItem(STORAGE_KEY_GAS) || '').trim() || DEFAULT_GAS_URL;
     let currentStudent = null; // { room, student_no, full_name }
     let completedWorksheets = {}; // { '1': { score, max_score, percentage, attempts } }
     let currentActiveWsId = null;
