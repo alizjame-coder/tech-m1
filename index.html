@@ -891,6 +891,23 @@
           if (res.student && res.student.full_name) {
             authData.full_name = res.student.full_name;
           }
+
+          // บันทึกสิทธิ์การเปิด-ปิดใบงานและสถานะห้องทันทีหลังลงทะเบียนเสร็จ
+          if (res.worksheet_access) {
+            try {
+              const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY_WS_ACCESS) || '{}');
+              if (res.worksheet_access.ALL) cfg.ALL = res.worksheet_access.ALL;
+              if (res.worksheet_access[room]) cfg[room] = res.worksheet_access[room];
+              localStorage.setItem(STORAGE_KEY_WS_ACCESS, JSON.stringify(cfg));
+            } catch (e) {}
+          }
+          currentRoomStatus = res.room_status || 'AUTO';
+          currentUnitTimes = res.unit_times || {};
+          currentAllowRetake = res.allow_retake !== false;
+          completedWorksheets = res.completed_worksheets || {};
+          if (res.server_time) {
+            serverOffsetMs = new Date(res.server_time).getTime() - Date.now();
+          }
         } else {
           // จัดเก็บลงฐานข้อมูลจำลองในเครื่อง (LocalStorage)
           const db = getSystemStudentsDb();
@@ -6963,7 +6980,7 @@
           clearTimeout(timeoutId);
 
           const result = await res.json();
-          if (result && result.status === 'success') {
+          if (result && (result.success === true || result.status === 'success')) {
             successCount++;
             clearCurrentWorksheetDraft(item.worksheet_id, item.room, item.student_no);
             if (currentStudent && String(currentStudent.room) === String(item.room) && String(currentStudent.student_no) === String(item.student_no)) {
