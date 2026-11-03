@@ -246,7 +246,11 @@
             เปิดเฉพาะหน่วย 4 (13-18)
           </button>
         </div>
-        <div class="text-xs font-semibold text-slate-600 flex items-center gap-2">
+        <div class="text-xs font-semibold text-slate-600 flex flex-wrap items-center gap-2">
+          <span id="wsAutoSaveStatusBadge" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 transition flex items-center gap-1.5 shadow-2xs">
+            <i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i>
+            <span>ระบบบันทึกอัตโนมัติ (Auto-Save)</span>
+          </span>
           <span>สถานะที่เปิดอยู่:</span>
           <span class="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 font-bold text-slate-800 font-mono shadow-xs">
             <span id="openWsCountBadge" class="text-emerald-600">18</span> / 18 ใบงาน
@@ -715,6 +719,11 @@
             roomsData = res.rooms || [];
             scoresData = res.scores || [];
             studentsData = res.students || [];
+            // ซิงค์สิทธิ์การเปิด-ปิดใบงานล่าสุดจากเซิร์ฟเวอร์คลาวด์เสมอ
+            if (res.worksheet_access && typeof res.worksheet_access === 'object') {
+              wsAccessConfig = Object.assign({}, wsAccessConfig, res.worksheet_access);
+              saveWsAccessConfigToStorage();
+            }
             localStorage.setItem('agy_system_rooms_status', JSON.stringify(roomsData));
             document.getElementById('serverClock').innerText = res.server_time_formatted || '-';
             syncStatus.innerText = 'ข้อมูลอัปเดตล่าสุด: ' + new Date().toLocaleTimeString('th-TH');
@@ -1094,6 +1103,60 @@
       return true;
     }
 
+    let wsAutoSaveTimer = null;
+
+    /**
+     * ระบบบันทึกอัตโนมัติขึ้นคลาวด์ทันทีเมื่อคลิกเปลี่ยนสถานะใบงาน (Instant Auto-Save)
+     */
+    function triggerAutoSaveWorksheetAccess(room) {
+      const badge = document.getElementById('wsAutoSaveStatusBadge');
+      if (badge) {
+        badge.className = 'text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 transition flex items-center gap-1.5 animate-pulse shadow-2xs';
+        badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-500"></i><span>กำลังบันทึกขึ้นคลาวด์...</span>';
+      }
+
+      if (wsAutoSaveTimer) clearTimeout(wsAutoSaveTimer);
+      wsAutoSaveTimer = setTimeout(async () => {
+        saveWsAccessConfigToStorage();
+        if (gasUrl) {
+          try {
+            const teacherToken = sessionStorage.getItem('teacher_secret_key') || 'thanin:krujamev8';
+            const resp = await fetch(gasUrl, {
+              method: 'POST',
+              mode: 'cors',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                action: 'update_worksheet_access',
+                room: room,
+                config: wsAccessConfig[room] || {},
+                teacher_token: teacherToken
+              })
+            });
+            const res = await resp.json();
+            if (res.success) {
+              if (badge) {
+                badge.className = 'text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 transition flex items-center gap-1.5 shadow-2xs';
+                badge.innerHTML = '<i class="fa-solid fa-cloud-check text-emerald-600"></i><span>บันทึกขึ้นคลาวด์แล้ว</span>';
+              }
+            } else {
+              throw new Error(res.error || 'Server error');
+            }
+          } catch (e) {
+            console.warn('Auto-save worksheet access error:', e);
+            if (badge) {
+              badge.className = 'text-[11px] font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 transition flex items-center gap-1.5 shadow-2xs';
+              badge.innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i><span>บันทึกในเครื่องแล้ว (ออฟไลน์)</span>';
+            }
+          }
+        } else {
+          if (badge) {
+            badge.className = 'text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 transition flex items-center gap-1.5 shadow-2xs';
+            badge.innerHTML = '<i class="fa-solid fa-hard-drive text-slate-500"></i><span>บันทึกในเครื่องแล้ว</span>';
+          }
+        }
+      }, 350);
+    }
+
     function toggleWorksheetAccess(wsId) {
       const room = document.getElementById('wsAccessTargetRoom') ? document.getElementById('wsAccessTargetRoom').value : 'ALL';
       if (!wsAccessConfig[room]) {
@@ -1106,6 +1169,7 @@
       wsAccessConfig[room][String(wsId)] = !current;
       saveWsAccessConfigToStorage();
       renderWorksheetSwitchGrid();
+      triggerAutoSaveWorksheetAccess(room);
     }
 
     function setAllWorksheetsStatus(isOpen) {
@@ -1116,6 +1180,7 @@
       });
       saveWsAccessConfigToStorage();
       renderWorksheetSwitchGrid();
+      triggerAutoSaveWorksheetAccess(room);
     }
 
     function setUnitWorksheetsStatus(unitNum, isOpen) {
@@ -1132,6 +1197,7 @@
       });
       saveWsAccessConfigToStorage();
       renderWorksheetSwitchGrid();
+      triggerAutoSaveWorksheetAccess(room);
     }
 
     function toggleUnitAll(unitNum, isOpen) {
@@ -1147,6 +1213,7 @@
       });
       saveWsAccessConfigToStorage();
       renderWorksheetSwitchGrid();
+      triggerAutoSaveWorksheetAccess(room);
     }
 
     function saveWsAccessConfigToStorage() {
