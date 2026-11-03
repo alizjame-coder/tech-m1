@@ -242,7 +242,7 @@
 
         <!-- ปุ่มกด Register -->
         <button id="btnRegister" onclick="handleStudentRegister()" class="w-full mt-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center space-x-2">
-          <span>ลงทะเบียนและเข้าสู่ระบบทันที</span>
+          <span>ลงทะเบียนเข้าใช้งาน</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
 
@@ -439,8 +439,34 @@
           </button>
         </div>
       </div>
-      <div class="p-3 sm:p-5 overflow-y-auto flex-1 bg-slate-100 flex items-center justify-center text-center">
-        <img id="originalSheetImg" src="" alt="ใบงานต้นฉบับ" class="max-w-full max-h-[75vh] object-contain rounded-xl shadow-md border border-slate-300">
+      <div class="p-3 sm:p-5 overflow-y-auto flex-1 bg-slate-100 flex items-center justify-center text-center relative min-h-[350px]">
+        <!-- Loading State -->
+        <div id="originalSheetLoading" class="hidden flex flex-col items-center justify-center space-y-3 py-12">
+          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600"></i>
+          <span class="text-sm font-semibold text-slate-600">กำลังโหลดภาพใบงานต้นฉบับ...</span>
+        </div>
+
+        <!-- Error State -->
+        <div id="originalSheetError" class="hidden flex flex-col items-center justify-center space-y-3 py-10 px-4 max-w-md bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mb-1">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h4 class="text-base font-bold text-slate-800">ไม่สามารถโหลดภาพตัวอย่างได้</h4>
+          <p class="text-xs text-slate-500 leading-relaxed text-center">
+            หากเปิดผ่านเว็บไซต์ออนไลน์ (เช่น Netlify หรือ GitHub Pages) กรุณาตรวจสอบว่าได้อัปโหลดโฟลเดอร์ <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-mono">ใบงาน</code> ขึ้นไปด้วยแล้ว
+          </p>
+          <div class="flex items-center space-x-2 pt-2">
+            <a id="originalSheetErrorBtn" href="#" target="_blank" class="inline-flex items-center space-x-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-xl transition">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>ลองเปิดไฟล์ภาพโดยตรง</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Image Element -->
+        <img id="originalSheetImg" src="" alt="ใบงานต้นฉบับ" class="hidden max-w-full max-h-[75vh] object-contain rounded-xl shadow-md border border-slate-300 transition-all duration-200">
+
+        <!-- DOCX HTML Element (WS 1-4) -->
         <div id="originalSheetDocx" class="hidden text-left bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 w-full max-w-3xl space-y-4"></div>
       </div>
     </div>
@@ -858,13 +884,6 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังบันทึกการลงทะเบียน...`;
 
       try {
-        let authData = {
-          room: room,
-          student_no: studentNo,
-          full_name: fullName,
-          pin: studentId
-        };
-
         if (gasWebAppUrl) {
           const resp = await fetch(gasWebAppUrl, {
             method: 'POST',
@@ -883,30 +902,8 @@
           if (!res.success) {
             alert(res.error || 'ไม่สามารถลงทะเบียนได้');
             btn.disabled = false;
-            btn.innerHTML = `<span>ลงทะเบียนและเข้าสู่ระบบทันที</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
+            btn.innerHTML = `<span>ลงทะเบียนเข้าใช้งาน</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
             return;
-          }
-
-          alert(res.message || 'ลงทะเบียนสำเร็จ!');
-          if (res.student && res.student.full_name) {
-            authData.full_name = res.student.full_name;
-          }
-
-          // บันทึกสิทธิ์การเปิด-ปิดใบงานและสถานะห้องทันทีหลังลงทะเบียนเสร็จ
-          if (res.worksheet_access) {
-            try {
-              const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY_WS_ACCESS) || '{}');
-              if (res.worksheet_access.ALL) cfg.ALL = res.worksheet_access.ALL;
-              if (res.worksheet_access[room]) cfg[room] = res.worksheet_access[room];
-              localStorage.setItem(STORAGE_KEY_WS_ACCESS, JSON.stringify(cfg));
-            } catch (e) {}
-          }
-          currentRoomStatus = res.room_status || 'AUTO';
-          currentUnitTimes = res.unit_times || {};
-          currentAllowRetake = res.allow_retake !== false;
-          completedWorksheets = res.completed_worksheets || {};
-          if (res.server_time) {
-            serverOffsetMs = new Date(res.server_time).getTime() - Date.now();
           }
         } else {
           // จัดเก็บลงฐานข้อมูลจำลองในเครื่อง (LocalStorage)
@@ -917,7 +914,7 @@
             if (existing.pin && existing.pin !== studentId) {
               alert(`ห้อง ${room} เลขที่ ${studentNo} ได้ลงทะเบียนไว้แล้วในระบบ\nกรุณาเข้าสู่ระบบด้วยรหัสผ่าน (เลขประจำตัว) หรือติดต่อครูหากลืมรหัส`);
               btn.disabled = false;
-              btn.innerHTML = `<span>ลงทะเบียนและเข้าสู่ระบบทันที</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
+              btn.innerHTML = `<span>ลงทะเบียนเข้าใช้งาน</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
               return;
             }
             existing.full_name = fullName;
@@ -932,21 +929,38 @@
           }
 
           localStorage.setItem('agy_system_students_db', JSON.stringify(db));
-          alert(`🎉 ลงทะเบียนสำเร็จ!\n\nยินดีต้อนรับ: ${fullName}\nห้อง: ${room} เลขที่: ${studentNo}\nรหัสผ่านของคุณคือเลขประจำตัว: ${studentId}\n\nระบบจะพาคุณเข้าสู่ระบบทำใบงานทันที`);
           loadMockCompleted();
         }
 
-        currentStudent = authData;
-        sessionStorage.setItem('agy_active_session', JSON.stringify(authData));
-        resetAuthInputs();
-        loginSuccess(authData);
+        // แจ้งเตือนลงทะเบียนสำเร็จ
+        alert(`🎉 ลงทะเบียนสำเร็จเรียบร้อย!\n\nยินดีต้อนรับ: ${fullName}\nห้อง: ${room} เลขที่: ${studentNo}\nรหัสผ่าน (PIN) ของคุณคือ: ${studentId}\n\nระบบจะนำคุณกลับไปที่หน้าเข้าสู่ระบบเพื่อยืนยันสิทธิ์และเริ่มทำใบงาน`);
+
+        // เด้งกลับไปหน้าเข้าสู่ระบบ (LOGIN) ตามที่ครูแนะนำ เพื่อให้ระบบโหลดสิทธิ์และซิงค์ข้อมูลกับ Google Sheets อย่างสมบูรณ์
+        switchAuthTab('LOGIN');
+
+        // เติมข้อมูลห้อง เลขที่ และรหัสผ่านให้อัตโนมัติ เพื่อความสะดวกของนักเรียน
+        const loginRoomEl = document.getElementById('loginRoom');
+        const loginNoEl = document.getElementById('loginStudentNo');
+        const loginPinEl = document.getElementById('loginPin');
+
+        if (loginRoomEl) loginRoomEl.value = room;
+        if (loginNoEl) loginNoEl.value = studentNo;
+        if (loginPinEl) {
+          loginPinEl.value = studentId;
+          loginPinEl.focus();
+        }
+
+        // ล้างช่องกรอกในแท็บลงทะเบียน
+        document.getElementById('regFullName').value = '';
+        document.getElementById('regStudentId').value = '';
+        document.getElementById('regConfirmId').value = '';
 
       } catch (err) {
         console.error('Register error:', err);
         alert('เกิดข้อผิดพลาดในการลงทะเบียน: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<span>ลงทะเบียนและเข้าสู่ระบบทันที</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
+        btn.innerHTML = `<span>ลงทะเบียนเข้าใช้งาน</span><i class="fa-solid fa-arrow-right ml-2"></i>`;
       }
     }
 
@@ -1406,37 +1420,84 @@
       const img = document.getElementById('originalSheetImg');
       const docxDiv = document.getElementById('originalSheetDocx');
       const dl = document.getElementById('originalSheetDownloadBtn');
+      const loading = document.getElementById('originalSheetLoading');
+      const errorDiv = document.getElementById('originalSheetError');
+      const errorBtn = document.getElementById('originalSheetErrorBtn');
       if (!modal) return;
 
+      // รีเซ็ตการแสดงผล
+      if (loading) loading.classList.add('hidden');
+      if (errorDiv) errorDiv.classList.add('hidden');
+      if (img) img.classList.add('hidden');
+      if (docxDiv) docxDiv.classList.add('hidden');
+
       if (wsId <= 4) {
-        // ใบงานที่ 1-4: แสดงผลเนื้อหาเต็มจากไฟล์ DOCX
-        if (img) img.classList.add('hidden');
+        // ใบงานที่ 1-4: แสดงจากเอกสาร DOCX (มีข้อมูล HTML แปลงล่วงหน้าใน JS)
         if (docxDiv) {
           docxDiv.classList.remove('hidden');
           const docxHtml = (window.DOCX_WORKSHEETS_DATA && window.DOCX_WORKSHEETS_DATA[wsId]) || '<p class="text-slate-500">กำลังโหลดเอกสาร...</p>';
           docxDiv.innerHTML = docxHtml;
         }
-        const docxPath = encodeURI(`ใบงาน/ใบงานที่ ${wsId}.docx`);
-        title.innerHTML = `<i class="fa-solid fa-file-word text-blue-400 mr-2"></i>ใบงานที่ ${wsId}: ${ws ? ws.title : ''} (เอกสารต้นฉบับ DOCX)`;
+        const docxPath = `worksheets/ws${wsId}.docx`;
+        if (title) title.innerHTML = `<i class="fa-solid fa-file-word text-blue-400 mr-2"></i>ใบงานที่ ${wsId}: ${ws ? ws.title : ''} (เอกสารต้นฉบับ DOCX)`;
         if (dl) {
           dl.href = docxPath;
           dl.setAttribute('download', `ใบงานที่ ${wsId}.docx`);
           dl.innerHTML = `<i class="fa-solid fa-download mr-1"></i><span>ดาวน์โหลด DOCX</span>`;
         }
       } else {
-        // ใบงานที่ 5-18: แสดงผลรูปภาพต้นฉบับ PNG
-        if (docxDiv) docxDiv.classList.add('hidden');
+        // ใบงานที่ 5-18: แสดงรูปภาพต้นฉบับ PNG
+        if (loading) loading.classList.remove('hidden');
+        if (title) title.innerHTML = `<i class="fa-solid fa-image text-amber-400 mr-2"></i>ใบงานที่ ${wsId}: ${ws ? ws.title : ''} (ภาพต้นฉบับ)`;
+
         if (img) {
-          img.classList.remove('hidden');
-          const imgPath = encodeURI(`ใบงาน/ใบงานที่ ${wsId}.png`);
-          img.src = imgPath;
-          if (dl) {
-            dl.href = imgPath;
-            dl.removeAttribute('download');
-            dl.innerHTML = `<i class="fa-solid fa-arrow-up-right-from-square mr-1"></i><span>เปิดแท็บใหม่</span>`;
+          // รายการ path ที่จะทดสอบโหลดตามลำดับความเสถียร (Pure ASCII -> Thai folder -> Raw Thai)
+          const candidatePaths = [
+            `worksheets/ws${wsId}.png`,
+            `worksheets/ws_${wsId}.png`,
+            `ใบงาน/ws${wsId}.png`,
+            encodeURI(`ใบงาน/ใบงานที่ ${wsId}.png`),
+            `ใบงาน/ใบงานที่ ${wsId}.png`,
+            `ws${wsId}.png`
+          ];
+
+          let pathIdx = 0;
+
+          function tryNextImage() {
+            if (pathIdx >= candidatePaths.length) {
+              // โหลดไม่สำเร็จทุก path แสดง Error UI พร้อมปุ่มลองเปิดตรง
+              if (loading) loading.classList.add('hidden');
+              if (img) img.classList.add('hidden');
+              if (errorDiv) errorDiv.classList.remove('hidden');
+              if (errorBtn) errorBtn.href = candidatePaths[0];
+              return;
+            }
+
+            const currentSrc = candidatePaths[pathIdx];
+            pathIdx++;
+
+            img.onload = function() {
+              if (loading) loading.classList.add('hidden');
+              if (errorDiv) errorDiv.classList.add('hidden');
+              img.classList.remove('hidden');
+              if (dl) dl.href = currentSrc;
+            };
+
+            img.onerror = function() {
+              tryNextImage();
+            };
+
+            img.src = currentSrc;
+
+            if (dl) {
+              dl.href = currentSrc;
+              dl.removeAttribute('download');
+              dl.innerHTML = `<i class="fa-solid fa-arrow-up-right-from-square mr-1"></i><span>เปิดแท็บใหม่</span>`;
+            }
           }
+
+          tryNextImage();
         }
-        title.innerHTML = `<i class="fa-solid fa-image text-amber-400 mr-2"></i>ใบงานที่ ${wsId}: ${ws ? ws.title : ''} (ภาพต้นฉบับ)`;
       }
       modal.classList.remove('hidden');
     }
