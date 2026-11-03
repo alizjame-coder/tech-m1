@@ -933,27 +933,28 @@
         }
 
         // แจ้งเตือนลงทะเบียนสำเร็จ
-        alert(`🎉 ลงทะเบียนสำเร็จเรียบร้อย!\n\nยินดีต้อนรับ: ${fullName}\nห้อง: ${room} เลขที่: ${studentNo}\nรหัสผ่าน (PIN) ของคุณคือ: ${studentId}\n\nระบบจะนำคุณกลับไปที่หน้าเข้าสู่ระบบเพื่อยืนยันสิทธิ์และเริ่มทำใบงาน`);
+        alert(`🎉 ลงทะเบียนสำเร็จเรียบร้อย!\n\nยินดีต้อนรับ: ${fullName}\nห้อง: ${room} เลขที่: ${studentNo}\nรหัสผ่าน (PIN) ของคุณคือ: ${studentId}\n\nระบบจะนำคุณกลับไปที่หน้าเข้าสู่ระบบ กรุณากรอกเลขที่และรหัสผ่านเพื่อเข้าใช้งาน`);
 
-        // เด้งกลับไปหน้าเข้าสู่ระบบ (LOGIN) ตามที่ครูแนะนำ เพื่อให้ระบบโหลดสิทธิ์และซิงค์ข้อมูลกับ Google Sheets อย่างสมบูรณ์
+        // ล้างค่าข้อมูลทั้งหมดทุกช่องให้ว่างเปล่า (ทั้งหน้าลงทะเบียนและหน้าเข้าสู่ระบบ)
+        resetAuthInputs();
+
+        // เด้งกลับไปหน้าเข้าสู่ระบบ (LOGIN) ตามที่ครูต้องการ
         switchAuthTab('LOGIN');
 
-        // เติมข้อมูลห้อง เลขที่ และรหัสผ่านให้อัตโนมัติ เพื่อความสะดวกของนักเรียน
+        // เลือกห้องเดิมไว้ให้เพื่อความสะดวก
         const loginRoomEl = document.getElementById('loginRoom');
+        if (loginRoomEl) loginRoomEl.value = room;
+
+        // ล้างค่าเลขที่และรหัสผ่านให้ว่างเปล่า ให้นักเรียนกรอกทดสอบด้วยตนเอง
         const loginNoEl = document.getElementById('loginStudentNo');
         const loginPinEl = document.getElementById('loginPin');
-
-        if (loginRoomEl) loginRoomEl.value = room;
-        if (loginNoEl) loginNoEl.value = studentNo;
-        if (loginPinEl) {
-          loginPinEl.value = studentId;
-          loginPinEl.focus();
+        if (loginNoEl) {
+          loginNoEl.value = '';
+          loginNoEl.focus();
         }
-
-        // ล้างช่องกรอกในแท็บลงทะเบียน
-        document.getElementById('regFullName').value = '';
-        document.getElementById('regStudentId').value = '';
-        document.getElementById('regConfirmId').value = '';
+        if (loginPinEl) {
+          loginPinEl.value = '';
+        }
 
       } catch (err) {
         console.error('Register error:', err);
